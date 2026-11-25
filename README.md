@@ -27,6 +27,8 @@ O instalador NSIS x64 sai em `release/`. A compilação local é sem assinatura.
 
 ## Tablet e dados
 
+Para servir amigos em outras redes sem VPN no cliente, consulte o [guia de hospedagem em VPS](deploy/README.md).
+
 No Debian ARM64 em PRoot, copie o repositório sem `node_modules`. Use Node.js 24 ARM64 e pnpm 11. Rode `sh scripts/install-arm64.sh`, preencha `.env` e depois rode `sh scripts/run-backend.sh`. Para um cliente Windows da mesma LAN, informe o IP privado atual do tablet em `HAVEN_BIND` e, no login, a origem do backend em **Servidor de contas**. Nesse arranjo, o backend e o banco podem funcionar com o PC desligado, sujeito à homologação no tablet. Mantenha o LiveKit existente em seu processo independente.
 
 O SQLite aplica migrações ao abrir. Rode `pnpm admin backup caminho-do-backup.sqlite` para obter uma cópia consistente inclusive com o serviço ativo. Para restaurar, pare o backend, preserve o banco atual e seus arquivos WAL/SHM juntos em outro diretório, coloque uma cópia do backup no caminho de `HAVEN_DB` e reabra o serviço. Restrinja o acesso ao banco e aos backups.

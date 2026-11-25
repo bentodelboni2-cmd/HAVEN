@@ -43,7 +43,7 @@ function acceptMedia(data) {
 }
 
 export function makeServer(db, config) {
-  const app = Fastify({ https: config.tls, bodyLimit: 20 * 1024, requestTimeout: 20000 })
+  const app = Fastify({ https: config.tls, trustProxy: config.trustProxy, bodyLimit: 20 * 1024, requestTimeout: 20000 })
   const get = (sql, ...args) => db.prepare(sql).get(...args)
   const all = (sql, ...args) => db.prepare(sql).all(...args)
   const run = (sql, ...args) => db.prepare(sql).run(...args)

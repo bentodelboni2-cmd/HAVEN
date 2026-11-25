@@ -23,7 +23,8 @@ const tls = env.HAVEN_TLS_KEY && env.HAVEN_TLS_CERT ? {
 } : undefined
 if (host !== '127.0.0.1' && !tls && !(lan && local.test(host))) throw new Error('Bind externo exige TLS ou IP privado explícito em modo LAN.')
 const db = openDb(env.HAVEN_DB || 'data/haven.sqlite')
-const app = makeServer(db, { media: media.href, api:api.href, key: env.LIVEKIT_API_KEY, secret: env.LIVEKIT_API_SECRET, tls })
+const trustProxy = host === '127.0.0.1' && env.HAVEN_TRUST_LOCAL_PROXY === '1' ? 'loopback' : false
+const app = makeServer(db, { media: media.href, api:api.href, key: env.LIVEKIT_API_KEY, secret: env.LIVEKIT_API_SECRET, tls, trustProxy })
 await app.listen({ port, host })
 console.log('HAVEN disponível em ' + app.addresses().map(address => address.port).join(', '))
 for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, async () => {

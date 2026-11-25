@@ -1,0 +1,46 @@
+name: haven
+
+services:
+  accounts:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    network_mode: host
+    restart: unless-stopped
+    environment:
+      HAVEN_BIND: 127.0.0.1
+      HAVEN_DB: /app/data/haven.sqlite
+      HAVEN_TRUST_LOCAL_PROXY: "1"
+      LIVEKIT_URL: wss://${LIVEKIT_HOST:?execute init.sh}
+      LIVEKIT_API_URL: http://127.0.0.1:7880
+      LIVEKIT_API_KEY: ${LIVEKIT_API_KEY:?execute init.sh}
+      LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET:?execute init.sh}
+    volumes:
+      - accounts-data:/app/data
+
+  livekit:
+    image: livekit/livekit-server:v1.13.11
+    network_mode: host
+    restart: unless-stopped
+    command: ["--config", "/etc/livekit.yaml"]
+    environment:
+      LIVEKIT_KEYS: "${LIVEKIT_API_KEY:?execute init.sh}: '${LIVEKIT_API_SECRET:?execute init.sh}'"
+    volumes:
+      - ./livekit.yaml:/etc/livekit.yaml:ro
+
+  caddy:
+    image: caddy:2.11.9-alpine
+    network_mode: host
+    restart: unless-stopped
+    environment:
+      HAVEN_HOST: ${HAVEN_HOST:?execute init.sh}
+      LIVEKIT_HOST: ${LIVEKIT_HOST:?execute init.sh}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+
+volumes:
+  accounts-data:
+  caddy-data:
+  caddy-config:

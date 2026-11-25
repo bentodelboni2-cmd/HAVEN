@@ -1,0 +1,9 @@
+{$HAVEN_HOST} {
+	reverse_proxy 127.0.0.1:8787
+}
+
+{$LIVEKIT_HOST} {
+	@signal path /rtc /rtc/*
+	reverse_proxy @signal 127.0.0.1:7880
+	respond 404
+}
