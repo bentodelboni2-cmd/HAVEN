@@ -10,8 +10,9 @@
 
 - `pnpm check`, teste de integração e build passaram. O teste verifica validade dos convites, permissões de espaço e arquivo, amizade, revogação de sessão, persistência do histórico e identidade/escopo/expiração do JWT.
 - Em 25/11/2026, duas instâncias Electron no PC, com contas distintas e o LiveKit real do tablet, criaram espaço, aceitaram amizade, trocaram DM e mantiveram a chamada durante a navegação. O receptor recebeu uma trilha de microfone.
-- Em uma amostra de janela em movimento com o perfil 1080p60, o receptor reportou 1824×1080, 39 FPS, 299 quadros decodificados, 0,18 Mbps, 13 ms de RTT e zero pacotes perdidos naquele instante. A trilha de áudio do sistema foi publicada e recebida. A verificação do tom de teste ficou inconclusiva.
-- Início, Espaço e Chamada foram abertos e inspecionados a 1280×720. O executável empacotado repetiu o teste com dois clientes. O instalador NSIS x64 sem assinatura foi gerado. A execução temporária do instalador para QA foi bloqueada por política do ambiente.
+- Em duas amostras de janela em movimento solicitando 1080p60, o receptor reportou 1824×1080, 15 e 39 FPS, 0,02 e 0,18 Mbps, RTT de 13 ms e zero pacotes perdidos nos instantes medidos. Na amostra de 39 FPS, eram 299 quadros decodificados. A trilha de áudio do sistema foi recebida, com pico detectado na frequência do tom de teste de 440 Hz (aproximadamente −57 dBFS). A audição física e os 60 FPS sustentados seguem pendentes.
+- Início, Espaço e Chamada foram abertos a 1280×720. Início foi verificado também a 2560×1080. O executável empacotado repetiu o teste com dois clientes e alternou o HUD de 460×160 para o modo normal. Instalador NSIS x64 sem assinatura gerado. A execução temporária do instalador para QA foi bloqueada por política do ambiente.
+- Os scripts shell passaram em verificação de sintaxe. Os diffs do tablet passaram em `git apply --check` contra os arquivos públicos upstream correspondentes. A revisão específica do tablet ainda não foi verificada.
 
 ## Homologação pendente
 

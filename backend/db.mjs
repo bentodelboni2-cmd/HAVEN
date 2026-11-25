@@ -23,11 +23,12 @@ export async function passwordMatches(password, stored) {
 export function openDb(path) {
   if (path !== ':memory:') mkdirSync(dirname(path), { recursive: true })
   const db = new DatabaseSync(path)
-  db.exec('PRAGMA foreign_keys=ON; PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000;')
-  const version = db.prepare('PRAGMA user_version').get().user_version
-  if (version > 1) throw new Error('Banco exige versão mais recente do HAVEN.')
-  if (version === 0) db.exec(`
-    BEGIN;
+  try {
+    db.exec('PRAGMA busy_timeout=5000; PRAGMA foreign_keys=ON; PRAGMA journal_mode=WAL;')
+    runTx(db, () => {
+      const version = db.prepare('PRAGMA user_version').get().user_version
+      if (version > 1) throw new Error('Banco exige versão mais recente do HAVEN.')
+      if (version === 0) db.exec(`
     CREATE TABLE users(id TEXT PRIMARY KEY, handle TEXT NOT NULL UNIQUE, name TEXT NOT NULL, password TEXT NOT NULL, color TEXT NOT NULL DEFAULT 'verde', seen INTEGER NOT NULL DEFAULT 0);
     CREATE TABLE sessions(hash TEXT PRIMARY KEY, user TEXT NOT NULL REFERENCES users(id), expires INTEGER NOT NULL);
     CREATE TABLE invites(hash TEXT PRIMARY KEY, space TEXT REFERENCES spaces(id), expires INTEGER NOT NULL, uses INTEGER NOT NULL CHECK(uses >= 0));
@@ -46,8 +47,12 @@ export function openDb(path) {
     CREATE INDEX call_members_user ON call_members(user);
     CREATE INDEX events_space ON events(space,starts);
     PRAGMA user_version=1;
-    COMMIT;
-  `)
+      `)
+    })
+  } catch (error) {
+    db.close()
+    throw error
+  }
   return db
 }
 
