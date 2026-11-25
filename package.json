@@ -1,0 +1,44 @@
+{
+  "name": "haven",
+  "version": "0.1.0",
+  "description": "Chamadas e espaços privados",
+  "author": "HAVEN",
+  "private": true,
+  "type": "module",
+  "main": "desktop/main.cjs",
+  "engines": { "node": ">=24 <25" },
+  "scripts": {
+    "backend": "node --env-file-if-exists=.env backend/serve.mjs",
+    "admin": "node --env-file-if-exists=.env backend/admin.mjs",
+    "build": "vite build",
+    "start": "electron .",
+    "check": "tsc --noEmit && node --check desktop/main.cjs && node --check desktop/preload.cjs",
+    "test": "node --test",
+    "package:win": "pnpm run build && electron-builder --win nsis --x64"
+  },
+  "dependencies": {
+    "fastify": "5.12.8",
+    "livekit-server-sdk": "2.20.1"
+  },
+  "devDependencies": {
+    "electron": "45.5.0",
+    "livekit-client": "2.25.0",
+    "lucide-react": "latest",
+    "react": "19",
+    "react-dom": "19",
+    "@types/react": "19",
+    "@types/react-dom": "19",
+    "typescript": "6",
+    "vite": "latest",
+    "electron-builder": "26.18.0"
+  },
+  "build": {
+    "appId": "app.haven.desktop",
+    "productName": "HAVEN",
+    "directories": { "output": "release" },
+    "files": ["desktop/**", "dist/**", "!node_modules"],
+    "npmRebuild": false,
+    "win": { "target": "nsis", "icon": "build/icon.ico", "signExecutable": false },
+    "nsis": { "oneClick": false, "allowToChangeInstallationDirectory": true }
+  }
+}
