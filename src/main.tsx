@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
-import { AudioLines, Bell, CirclePlus, Clipboard, LayoutGrid, Phone, Plus, Settings, Users, X } from 'lucide-react'
+import { AudioLines, Bell, CalendarDays, CirclePlus, Clipboard, House, Images, LayoutGrid, Phone, Plus, Settings, Users, X } from 'lucide-react'
 import { ApiError, baseDefault, client, describe } from './api'
 import type { Call, Channel, Snapshot, Space, Thread } from './api'
 import { Avatar, Conversation, Dialog, Empty, Events, Panel, Recent, SectionTitle } from './components'
@@ -13,8 +13,12 @@ import { createRoot } from 'react-dom/client'
 import { Login } from './auth'
 import './style.css'
 
-const nav = ['Início','Espaços','Amigos','Chamadas','Atividades','Biblioteca'] as const
-type Page = (typeof nav)[number] | 'Ajustes'
+const nav = [
+  { label: 'Início', icon: House }, { label: 'Espaços', icon: LayoutGrid },
+  { label: 'Amigos', icon: Users }, { label: 'Chamadas', icon: Phone },
+  { label: 'Atividades', icon: CalendarDays }, { label: 'Biblioteca', icon: Images },
+] as const
+type Page = (typeof nav)[number]['label'] | 'Ajustes'
 
 function App() {
   const [base,setBase]=useState(()=>localStorage.getItem('haven.backend')||baseDefault)
@@ -177,7 +181,7 @@ function App() {
   return <div className={'shell '+prefs.theme+(hud?' hud':'')}>
     <header className="topbar">
       <button className="wordmark" onClick={()=>navigate('Início')} aria-label="HAVEN, início"><Brand/></button>
-      {!hud&&<nav aria-label="Navegação principal">{nav.map(label=><button key={label} className={page===label?'current':''} aria-current={page===label?'page':undefined} onClick={()=>navigate(label)}>{label}</button>)}</nav>}
+      {!hud&&<nav aria-label="Navegação principal">{nav.map(({label,icon:Icon})=><button key={label} className={page===label?'current':''} aria-current={page===label?'page':undefined} onClick={()=>navigate(label)}><Icon size={17} aria-hidden="true"/>{label}</button>)}</nav>}
       <div className="top-right">{!hud&&<button className="icon notifications" aria-label="Notificações" onClick={()=>setModal({title:'Notificações',content:<div className="stack">{pendingCalls()}{pendingFriends>0&&<button className="quiet" onClick={()=>{close();navigate('Amigos')}}>Ver pedidos de amizade</button>}</div>})}><Bell size={19}/>{invites.length+pendingFriends>0&&<i>{invites.length+pendingFriends}</i>}</button>}<WindowButtons/></div>
     </header>
     {!hud&&<><aside className="rail" aria-label="Espaços e ajustes">

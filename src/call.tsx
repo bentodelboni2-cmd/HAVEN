@@ -62,7 +62,7 @@ export function CallView({api,media,prefs,save,notify,me,version}:{api:Api;media
     </div></div>
     <div className={'call-layout '+(chat?'':'no-chat')}>
       <div className="call-media">
-        <section className="stage" ref={surface}>
+        <section className={focused?.publication.track ? 'stage presenting' : 'stage'} ref={surface}>
           {focused?.publication.track ? <>
             <Player track={focused.publication.track} kind="video" fit/>
             <div className="stage-meta"><div><strong>{focused.person.name || 'Participante'}</strong><small>{stats || 'Aguardando métricas WebRTC'}{focused.person===media.mine&&media.requestedShare?' · solicitado '+media.requestedShare:''}</small></div>
@@ -74,7 +74,7 @@ export function CallView({api,media,prefs,save,notify,me,version}:{api:Api;media
         {media.shares.length>1&&<div className="share-tabs">{media.shares.map(s=><button key={s.person.identity} className={focused?.person===s.person?'quiet selected':'quiet'} onClick={()=>setSelected(s.person.identity)}><Monitor size={15}/>{s.person.name}</button>)}</div>}
       </div>
       {chat&&<aside className="panel call-chat">
-        <header><h2>Conversa</h2></header>
+        <header><h2><MessageSquare size={19} aria-hidden="true"/> Conversa da chamada</h2></header>
         <Conversation key={current.id} api={api} thread={{kind:'call',target:current.id}} signal={version} me={me} notify={notify}/>
         <div className="reactions">{['👍','❤️','👏','😂'].map(reaction=><button className="icon" key={reaction} aria-label={'Reagir '+reaction} onClick={()=>void api.json('/conversations/call/'+current.id,{text:reaction}).catch(notify)}>{reaction}</button>)}</div>
       </aside>}
@@ -134,10 +134,10 @@ export function CallControls({media,prefs,notify,open,toggleHud,hud,shareRequest
     <footer className="call-controls">
       {!hud&&<button className="call-return quiet" onClick={open}><ChevronsUp size={18}/><span>{media.active.title}</span></button>}
       <div className="control-buttons">
-        <button className={'icon '+(!mic?'muted':'')} title={prefs.ptt?'Pressione '+prefs.pttKey+' para falar':mic?'Silenciar microfone':'Ativar microfone'} aria-label={mic?'Silenciar microfone':'Ativar microfone'} disabled={!connected||working||prefs.ptt} aria-pressed={mic} onClick={()=>void action(()=>mine?.setMicrophoneEnabled(!mic))}>{mic?<Mic size={20}/>:<MicOff size={20}/>}</button>
-        <button className={'icon '+(media.deaf?'muted':'')} title={media.deaf?'Ouvir chamada':'Desativar áudio recebido'} aria-label={media.deaf?'Ouvir chamada':'Desativar áudio recebido'} aria-pressed={media.deaf} onClick={()=>media.setDeaf(!media.deaf)}>{media.deaf?<HeadphoneOff size={20}/>:<Headphones size={20}/>}</button>
-        <button className={'icon '+(camera?'selected':'')} title={camera?'Desligar câmera':'Ligar câmera'} aria-label={camera?'Desligar câmera':'Ligar câmera'} aria-pressed={camera} disabled={!connected||working} onClick={()=>void action(()=>mine?.setCameraEnabled(!camera))}>{camera?<Camera size={20}/>:<CameraOff size={20}/>}</button>
-        <button className={'icon '+(media.sharing?'selected':'')} title={media.sharing?'Parar compartilhamento':'Compartilhar tela'} aria-label={media.sharing?'Parar compartilhamento':'Compartilhar tela'} aria-pressed={media.sharing} disabled={!connected||working} onClick={pick}>{media.sharing?<MonitorOff size={20}/>:<Monitor size={20}/>}</button>
+        <button className={'icon '+(!mic?'muted':'')} title={prefs.ptt?'Pressione '+prefs.pttKey+' para falar':mic?'Silenciar microfone':'Ativar microfone'} aria-label={mic?'Silenciar microfone':'Ativar microfone'} disabled={!connected||working||prefs.ptt} aria-pressed={mic} onClick={()=>void action(()=>mine?.setMicrophoneEnabled(!mic))}>{mic?<Mic size={20}/>:<MicOff size={20}/>}<span className="control-label">Microfone</span></button>
+        <button className={'icon '+(media.deaf?'muted':'')} title={media.deaf?'Ouvir chamada':'Desativar áudio recebido'} aria-label={media.deaf?'Ouvir chamada':'Desativar áudio recebido'} aria-pressed={media.deaf} onClick={()=>media.setDeaf(!media.deaf)}>{media.deaf?<HeadphoneOff size={20}/>:<Headphones size={20}/>}<span className="control-label">Áudio</span></button>
+        <button className={'icon '+(camera?'selected':'')} title={camera?'Desligar câmera':'Ligar câmera'} aria-label={camera?'Desligar câmera':'Ligar câmera'} aria-pressed={camera} disabled={!connected||working} onClick={()=>void action(()=>mine?.setCameraEnabled(!camera))}>{camera?<Camera size={20}/>:<CameraOff size={20}/>}<span className="control-label">Câmera</span></button>
+        <button className={'icon '+(media.sharing?'selected':'')} title={media.sharing?'Parar compartilhamento':'Compartilhar tela'} aria-label={media.sharing?'Parar compartilhamento':'Compartilhar tela'} aria-pressed={media.sharing} disabled={!connected||working} onClick={pick}>{media.sharing?<MonitorOff size={20}/>:<Monitor size={20}/>}<span className="control-label">{media.sharing?'Parar transmissão':'Compartilhar tela'}</span></button>
         {window.haven&&<button className={'icon '+(hud?'selected':'')} aria-label={hud?'Sair do modo flutuante':'Modo flutuante'} title={hud?'Sair do modo flutuante':'Modo flutuante'} onClick={toggleHud}><Maximize size={18}/></button>}
         <button className="danger disconnect" disabled={working} onClick={()=>void action(media.leave)}><PhoneOff size={19}/><span>Sair</span></button>
       </div>

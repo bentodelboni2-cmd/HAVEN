@@ -1,6 +1,6 @@
 # HAVEN
 
-Aplicativo Windows para chamadas e espaços privados. A versão 0.2.0 usa o LiveKit do tablet para mídia e um backend separado para contas, conversas e arquivos.
+Aplicativo Windows para chamadas e espaços privados. A versão 0.2.1 usa o LiveKit do tablet para mídia e um backend separado para contas, conversas e arquivos.
 
 ## Primeira execução no PC
 

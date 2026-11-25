@@ -298,3 +298,96 @@ dialog p{color:var(--dim)}
 .collection-empty h2 { font-size: 21px; font-weight: 580 }
 .collection-empty p { color: var(--dim); max-width: 45ch }
 .collection-empty>button,.collection-empty>.inline { margin-top: 8px }
+/* Superfícies noturnas e estados ativos */
+.shell.ardosia {
+  --bg: #0c141f;
+  --bar: #101a28;
+  --panel: #151f30;
+  --inner: #172438;
+  --line: #2c3b51;
+  --dim: #acbbd0;
+  --green: #81efdd;
+  --lavender: #c3b0f4;
+}
+.shell.ardosia .workspace {
+  background: radial-gradient(ellipse at 80% 0%, #1c2443 0, transparent 50%),
+    radial-gradient(ellipse at 5% 6%, #102d37 0, transparent 46%);
+}
+.topbar nav { align-items: center; gap: clamp(3px, 1vw, 15px) }
+.topbar nav button {
+  min-height: 39px; padding: 0 clamp(8px, 1vw, 14px);
+  border: 1px solid transparent; border-radius: 11px;
+}
+.topbar nav button.current {
+  color: #e6ffff; border-color: #3e8f8c;
+  background: linear-gradient(160deg, #215456, #162c3e 74%);
+  box-shadow: inset 0 0 16px #52e7d225, 0 2px 17px #40c7d116;
+}
+.topbar nav button.current::after { content: none }
+.shell.ardosia .rail { background: linear-gradient(170deg, #111d2a, #0d1724 75%, #19243a) }
+.shell.ardosia .rail-button { background: #172538; border-color: #304058; color: #c1cde3 }
+.shell.ardosia .space-icon:nth-child(3n+1) { background: #24324a; color: #bfb6f3 }
+.shell.ardosia .space-icon:nth-child(3n+2) { background: #15373e; color: #a7f5de }
+.shell.ardosia .space-icon:nth-child(3n) { background: #322841; color: #e1bdf8 }
+.shell.ardosia .rail-button:hover,.shell.ardosia .rail-button.selected {
+  border-color: #69d9d0; color: #d5fff7; box-shadow: inset 0 0 16px #53dfcc25;
+}
+.shell .accent,.entry .accent {
+  background: linear-gradient(145deg, #93f0dd, #54cfce);
+  border-color: #95f4e1; color: #082324;
+}
+.shell .accent:hover,.entry .accent:hover { background: #a3f5e5 }
+.home-landscape,.shell .hero {
+  border-color: #55728d; background-image: url('/aurora.jpg');
+  box-shadow: 0 12px 30px #030a1570;
+}
+.shell .hero.bruma { background-image: url('/serra.jpg') }
+.home-landscape { min-height: clamp(245px, 39vh, 430px); background-position: center 55% }
+.home-landscape::before { background: linear-gradient(90deg, #091624ef, #0a18288a 45%, transparent 80%), linear-gradient(0deg, #0a162870, transparent 50%) }
+.entry-landscape { background-image: url('/aurora.jpg'); background-position: 88% center }
+.entry,.entry-layout { background-color: #111a28 }
+.entry-sheet input:not([type=range],[type=checkbox]) { background: #131f2d; border-color: #384a64 }
+.entry h1,.home-welcome h1 { color: #f4f6fd }
+.home-join { border-color: #6a659b; background: #211f3ae8 }
+.home-join:hover { background: #343056 }
+.shell.ardosia .destination, .shell.ardosia .panel {
+  border-color: #34465e;
+  background: linear-gradient(150deg, #19273b, #121c2b 70%);
+}
+.shell.ardosia .destination:first-child { border-color: #59557f }
+.shell.ardosia .destination:last-child { border-color: #37626b }
+.shell.ardosia .destination:hover { border-color: #6fdacf; background: #1d3046 }
+.shell.ardosia .room-card { border-color: #3a6a71; background: linear-gradient(140deg, #193640, #172436 70%) }
+.shell.ardosia .room-card:nth-child(even) { border-color: #635581; background: linear-gradient(140deg, #2d2b49, #172436 70%) }
+.shell.ardosia .room-card:hover { border-color: #79dfd5 }
+.call-heading {
+  border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px;
+  background: linear-gradient(90deg, #0b1523 12%, #0b1523b0 62%, #15172a8a), url('/aurora.jpg') center 24%/cover;
+}
+.call-heading .inline { flex-wrap: wrap; justify-content: flex-end }
+.call-heading .status { padding: 6px 9px; border: 1px solid var(--line); border-radius: 8px; background: #101a2b }
+.stage { background: radial-gradient(ellipse at 70% 5%, #192b43, #0d1725 73%) }
+.stage.presenting { border-color: #68e6de; box-shadow: 0 0 16px #56e7d531 }
+.participant-preview { background: linear-gradient(145deg, #16303c, #2b2443) }
+.participant.speaking { box-shadow: 0 0 13px #53e4d21f }
+.call-chat header svg { color: var(--green); margin-right: 5px }
+.call-controls .control-buttons>.icon:has(.control-label) {
+  min-width: 69px; flex-direction: column; gap: 4px;
+  padding: 6px 10px; background: linear-gradient(145deg, #233950, #182538);
+}
+.call-controls .control-buttons>.icon.selected { border-color: #65dfd3; background: #20484b }
+.control-label { font-size: 11px; white-space: nowrap }
+.hud .control-label { display: none }
+.hud .call-controls .control-buttons>.icon:has(.control-label) { min-width: 41px; padding: 7px }
+.call-controls .disconnect { background: linear-gradient(145deg, #a13755, #75263d); border-color: #c7657c }
+.call-controls .disconnect:hover { background: #bd4864 }
+@media(max-width: 950px) {
+  .topbar nav { gap: 3px }
+  .topbar nav button { padding: 0 8px }
+  .control-label { display: none }
+  .call-controls .control-buttons>.icon:has(.control-label) { min-width: 41px; padding: 7px }
+}
+@media(max-width: 680px) {
+  .call-heading { flex-wrap: wrap }
+  .call-heading .inline { justify-content: flex-start }
+}
