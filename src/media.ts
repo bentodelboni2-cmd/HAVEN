@@ -67,7 +67,9 @@ export function useCall(api: Api, prefs: Prefs) {
       })
       const updateEvents = [RoomEvent.ConnectionStateChanged,RoomEvent.ParticipantConnected,RoomEvent.ParticipantDisconnected,RoomEvent.TrackPublished,RoomEvent.TrackUnpublished,RoomEvent.TrackSubscribed,RoomEvent.TrackUnsubscribed,RoomEvent.TrackMuted,RoomEvent.TrackUnmuted,RoomEvent.LocalTrackPublished,RoomEvent.LocalTrackUnpublished,RoomEvent.ActiveSpeakersChanged,RoomEvent.ConnectionQualityChanged]
       for (const event of updateEvents) next.on(event,refresh)
-      await next.connect(result.url,result.token,{maxRetries:2})
+      await next.connect(result.url,result.token,{maxRetries:2}).catch(cause => {
+        throw new Error('Não foi possível entrar na chamada. Confira a conexão com o servidor de mídia e tente novamente.', { cause })
+      })
       const current = { id,title,code:result.code,room:next }
       activeRef.current = current
       setDeaf(false)

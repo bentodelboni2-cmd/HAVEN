@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
-import { AudioLines, Bell, CalendarDays, CirclePlus, Clipboard, House, Image, LayoutGrid, Phone, Plus, Settings, Users, X } from 'lucide-react'
+import { AudioLines, Bell, CirclePlus, Clipboard, LayoutGrid, Phone, Plus, Settings, Users, X } from 'lucide-react'
 import { ApiError, baseDefault, client, describe } from './api'
 import type { Call, Channel, Snapshot, Space, Thread } from './api'
 import { Avatar, Conversation, Dialog, Empty, Events, Panel, Recent, SectionTitle } from './components'
@@ -8,15 +8,13 @@ import { CallAudio, CallControls, CallView } from './call'
 import { initialPrefs, useCall } from './media'
 import type { Prefs } from './media'
 import { Friends, Home, Spaces } from './pages'
-import { Brand, Form, Login, SettingsPage, WindowButtons } from './shell'
+import { Brand, Form, SettingsPage, WindowButtons } from './shell'
 import { createRoot } from 'react-dom/client'
+import { Login } from './auth'
 import './style.css'
 
-const nav = [
-  {label:'Início',icon:House},{label:'Espaços',icon:LayoutGrid},{label:'Amigos',icon:Users},
-  {label:'Chamadas',icon:Phone},{label:'Atividades',icon:CalendarDays},{label:'Biblioteca',icon:Image},
-] as const
-type Page = (typeof nav)[number]['label'] | 'Ajustes'
+const nav = ['Início','Espaços','Amigos','Chamadas','Atividades','Biblioteca'] as const
+type Page = (typeof nav)[number] | 'Ajustes'
 
 function App() {
   const [base,setBase]=useState(()=>localStorage.getItem('haven.backend')||baseDefault)
@@ -88,7 +86,8 @@ function App() {
     await api.json('/logout',{})
     invalidate()
   }
-  if(!token)return <Login base={base} authorized={(address,next)=>{
+  if(!token)return <Login base={base} authorized={(address,next,created)=>{
+    if(created)notify('Conta criada. Boas-vindas ao HAVEN!')
     localStorage.setItem('haven.backend',address);sessionStorage.setItem('haven.token',next);setBase(address);setToken(next);refresh()
   }}/>
   if(!data)return <div className="waiting"><header className="topbar"><Brand/><WindowButtons/></header><main><h1>{connection||'Conectando ao HAVEN…'}</h1>
@@ -157,12 +156,13 @@ function App() {
     <div className="inline"><button className="accent" onClick={()=>respond(c,true)}>Aceitar</button><button className="quiet" onClick={()=>respond(c,false)}>Recusar</button></div></li>)}</ul>:<Empty>Nenhum convite de chamada.</Empty>
   const content=()=>{
     switch(page){
-      case 'Início': return <Home data={data} open={openThread} onVoice={voice} quick={()=>start({},'Chamada rápida')} share={()=>media.active?(navigate('Chamadas'),setShareRequest(x=>x+1)):start({},'Compartilhamento de tela',true)} join={joinCall} group={group} goFriends={()=>navigate('Amigos')} busy={media.busy}/>
+      case 'Início': return <Home data={data} open={openThread} onVoice={voice} call={()=>media.active ? navigate('Chamadas') : start({},'Chamada rápida')}
+        join={joinCall} goFriends={()=>navigate('Amigos')} goSpaces={()=>data.spaces.length ? navigate('Espaços') : joinSpace()} active={hasActive} busy={media.busy}/>
       case 'Espaços': return <Spaces data={data} space={space} api={api} version={version} notify={notify} open={openThread} openSpace={openSpace} onVoice={voice} edit={editSpace} invite={inviteSpace} create={createSpace} join={joinSpace} editRoom={editRoom} event={eventForm}
         activeRoom={data.calls.find(c=>c.id===media.active?.id)?.room||undefined} role={(s,user,role)=>void act(()=>api.json('/spaces/'+s.id+'/role',{user,role}))}/>
       case 'Amigos': return <Friends data={data} add={addFriend} open={openThread} call={(id,name)=>start({users:[id]},'Chamada com '+name)} respond={(id,accept)=>void act(()=>api.json('/friends/'+id+'/respond',{accept}))}/>
       case 'Chamadas': return media.active?<CallView key={media.active.id} api={api} media={media} prefs={prefs} save={save} notify={notify} me={data.me.id} version={version}/>:
-        <><div className="heading"><SectionTitle>Chamadas</SectionTitle><div className="inline wrap"><button className="quiet" onClick={joinCall}>Entrar com código</button><button className="quiet" onClick={group}><Users size={17}/> Chamada em grupo</button><button className="accent" onClick={()=>start({},'Chamada privada')} disabled={media.busy}><Phone size={17}/> Chamada privada</button></div></div>
+        <><div className="heading"><SectionTitle>Chamadas</SectionTitle><div className="inline wrap"><button className="quiet" onClick={joinCall}>Entrar com código</button><button className="quiet" disabled={media.busy} onClick={()=>start({},'Compartilhamento de tela',true)}>Compartilhar tela</button><button className="quiet" onClick={group}><Users size={17}/> Chamada em grupo</button><button className="accent" onClick={()=>start({},'Chamada privada')} disabled={media.busy}><Phone size={17}/> Chamada privada</button></div></div>
         {media.busy&&<p role="status">Conectando à chamada…</p>}<Panel title="Convites de chamada">{pendingCalls()}</Panel></>
       case 'Atividades': return <><div className="heading"><SectionTitle>Atividades</SectionTitle>{data.spaces.length>0&&<button className="accent" onClick={()=>eventForm()}><Plus size={17}/> Agendar encontro</button>}</div>
         <div className="dashboard"><Panel title="Agenda"><Events events={data.events} spaces={data.spaces}/></Panel><Panel title="Atividade recente"><Recent items={data.latest} open={openThread}/></Panel></div></>
@@ -177,14 +177,14 @@ function App() {
   return <div className={'shell '+prefs.theme+(hud?' hud':'')}>
     <header className="topbar">
       <button className="wordmark" onClick={()=>navigate('Início')} aria-label="HAVEN, início"><Brand/></button>
-      {!hud&&<nav aria-label="Navegação principal">{nav.map(({label,icon:Icon})=><button key={label} className={page===label?'current':''} aria-current={page===label?'page':undefined} onClick={()=>navigate(label)}><Icon size={17}/><span>{label}</span></button>)}</nav>}
+      {!hud&&<nav aria-label="Navegação principal">{nav.map(label=><button key={label} className={page===label?'current':''} aria-current={page===label?'page':undefined} onClick={()=>navigate(label)}>{label}</button>)}</nav>}
       <div className="top-right">{!hud&&<button className="icon notifications" aria-label="Notificações" onClick={()=>setModal({title:'Notificações',content:<div className="stack">{pendingCalls()}{pendingFriends>0&&<button className="quiet" onClick={()=>{close();navigate('Amigos')}}>Ver pedidos de amizade</button>}</div>})}><Bell size={19}/>{invites.length+pendingFriends>0&&<i>{invites.length+pendingFriends}</i>}</button>}<WindowButtons/></div>
     </header>
     {!hud&&<><aside className="rail" aria-label="Espaços e ajustes">
-      <button className={'rail-button '+(page==='Início'?'selected':'')} title="Início" aria-label="Início" onClick={()=>navigate('Início')}><House size={20}/></button><hr/>
+      <button className={'rail-button '+(page==='Espaços'&&!spaceId?'selected':'')} title="Todos os espaços" aria-label="Todos os espaços" onClick={()=>navigate('Espaços')}><LayoutGrid size={20}/></button>{data.spaces.length>0&&<hr/>}
       <div className="rail-spaces">{data.spaces.map(s=><button key={s.id} className={'rail-button space-icon '+(spaceId===s.id&&page==='Espaços'?'selected':'')} title={s.name} aria-label={s.name} onClick={()=>openSpace(s.id)}>{s.name.slice(0,2).toUpperCase()}</button>)}</div>
       <button className="rail-button" title="Criar espaço" aria-label="Criar espaço" onClick={createSpace}><CirclePlus size={21}/></button>
-      <div className="rail-end"><button className={'rail-button '+(page==='Ajustes'?'selected':'')} title="Ajustes" aria-label="Ajustes" onClick={()=>navigate('Ajustes')}><Settings size={20}/></button><button className="profile" title="Meu perfil" aria-label="Meu perfil" onClick={()=>navigate('Ajustes')}><Avatar p={data.me}/></button></div>
+      <div className="rail-end"><button className="profile profile-settings" title="Perfil e ajustes" aria-label="Perfil e ajustes" onClick={()=>navigate('Ajustes')}><Avatar p={data.me}/><Settings size={13}/></button></div>
     </aside>
     <main className="workspace" key={page}>
       {connection&&<p className="notice" role="status">{connection} <button className="quiet" onClick={refresh}>Reconectar</button></p>}

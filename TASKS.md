@@ -14,6 +14,10 @@
 - Início, Espaço e Chamada foram abertos a 1280×720. Início foi verificado também a 2560×1080. O executável empacotado repetiu o teste com dois clientes e alternou o HUD de 460×160 para o modo normal. Instalador NSIS x64 sem assinatura gerado. A execução temporária do instalador para QA foi bloqueada por política do ambiente.
 - Os scripts shell passaram em verificação de sintaxe. Os diffs do tablet passaram em `git apply --check` contra os arquivos públicos upstream correspondentes. A revisão específica do tablet ainda não foi verificada.
 
+## Interface 0.2.0
+
+O executável passou no fluxo de cadastro por convite, saída e novo login com uma conta isolada. Testes cobriram chave incompleta, inválida e já usada, senha incorreta, servidor de contas indisponível, recuperação, navegação pela Home e verificação de largura em 850×580 e 3440×1440. A composição foi inspecionada em 1280×720. Dois clientes confirmaram criação de espaço, amizade e DM. O LiveKit do tablet recusou a conexão nesta rodada. O cliente exibiu o erro de mídia em português e permitiu voltar à Home.
+
 ## Homologação pendente
 
 1. Com dois PCs na LAN, use o perfil 1080p60 e uma fonte 16:9 em movimento contínuo. Use fones. Confirme voz em ambos os sentidos e, com o microfone do transmissor silenciado, confirme que o receptor ouve um trecho de teste do sistema. Verifique eco e teste também janela, monitor ultrawide, desconexão de dispositivo e mudança de rede.

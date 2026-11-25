@@ -59,18 +59,17 @@ hr{border:0;border-top:1px solid var(--line);width:30px;margin:2px auto}
 .dashboard{display:grid;grid-template-columns:minmax(0,2.65fr) minmax(245px,1fr);gap:18px;align-items:start}
 .column{display:grid;gap:16px;min-width:0;align-content:start}
 .hero{position:relative;isolation:isolate;border:1px solid #3a4858;border-radius:var(--radius);overflow:hidden;min-height:184px;padding:26px;display:flex;align-items:center;background:#172635 url('/serra.jpg') center 51%/cover no-repeat}
-.hero::before,.login-art::before{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(90deg,#131c2af2,#131c2a80 40%,transparent 76%)}
+.hero::before{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(90deg,#131c2af2,#131c2a80 40%,transparent 76%)}
 .hero.noite::before{background:linear-gradient(90deg,#151324,#302941aa 52%,#242a5444)}
 .hero.bruma::before{background:linear-gradient(90deg,#182b30,#50717c92 55%,#9db4bc55)}
 .hero h2{font-size:clamp(20px,2vw,30px);letter-spacing:-.035em}
 .hero p{color:#cfdae7;margin-top:6px;max-width:48ch}
 .hero small{display:block;margin-top:6px}
-.quick-grid,.room-grid,.space-list{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
-.quick-grid button,.room-card{background:var(--panel);border:1px solid var(--line);min-width:0;border-radius:var(--radius)}
-.quick-grid button{justify-content:flex-start;padding:12px;gap:10px}
-.quick-grid button:hover,.room-card:hover,.feed-button:hover{background:#293545}
-.quick-grid button div,.feed-button div{min-width:0}
-.quick-grid small,.feed small,.feed-button small{display:block;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.room-grid,.space-list{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.room-card{background:var(--panel);border:1px solid var(--line);min-width:0;border-radius:var(--radius)}
+.room-card:hover,.feed-button:hover{background:#293545}
+.feed-button div{min-width:0}
+.feed small,.feed-button small{display:block;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .glyph,.avatar{display:grid;place-content:center;width:37px;height:37px;flex:none;border-radius:10px;background:#29443e;color:#97ddd0}
 .glyph.azul,.avatar.azul{background:#2d445c;color:#b9d0e7}
 .glyph.lavanda,.avatar.lavanda{background:#3f354f;color:#d1bfed}
@@ -89,12 +88,6 @@ hr{border:0;border-top:1px solid var(--line);width:30px;margin:2px auto}
 .feed-button{width:100%;justify-content:flex-start;background:transparent;padding:5px 0}
 .feed .feed-button{border:0}
 .friends li{padding:12px 3px}
-.game-hero{min-height:126px;background-position:center 65%}
-.game-hero .quiet{margin-top:10px}
-.game-hero h2{font-size:19px}
-.people{display:flex;flex-wrap:wrap;gap:8px}
-.person-chip{padding:4px 10px 4px 4px}
-.person-chip .avatar{width:29px;height:29px}
 .space-entry{display:block;text-align:left;min-height:160px}
 .space-entry svg{margin-top:12px;color:var(--green)}
 .room-card{display:flex;gap:3px;padding:5px 6px 5px 9px}
@@ -174,19 +167,134 @@ dialog p{color:var(--dim)}
 .toast,.notice{background:#273747;border:1px solid #526983;border-radius:9px;padding:9px 11px}
 .toast{position:fixed;z-index:4;right:16px;bottom:13px;display:flex;align-items:center;gap:8px;max-width:min(500px,91vw);box-shadow:0 6px 18px #0004}
 .notice{margin-bottom:10px}
-.login,.waiting{height:100dvh;overflow:auto}
-.login>.topbar>.brand,.waiting>.topbar>.brand{align-self:center}
-.login-main{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(300px,1fr);min-height:calc(100dvh - 58px)}
-.login-art{position:relative;isolation:isolate;background:#162330 url('/serra.jpg') 67% center/cover;display:flex;align-items:center;padding:clamp(23px,5vw,80px)}
-.login-art h1{font-size:clamp(24px,3.6vw,52px);margin-top:18px;max-width:12ch}
-.login-art p{margin-top:8px;color:#d7e0e9}
-.login-form{width:min(100%,470px);padding:24px 38px;margin:auto;display:grid;gap:13px}
-.login-form h1{margin-bottom:7px}
-.login-form .accent{margin-top:5px}
-.login-links{display:flex;gap:7px;justify-content:space-between}
 .waiting main{padding:36px;display:grid;gap:12px}
-@media(max-width:1120px){.topbar nav{gap:5px}.topbar nav button{padding:0 6px}.quick-grid button{padding:9px}.quick-grid small{white-space:normal}.space-bottom{grid-template-columns:1fr}.room-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media(max-width:950px){.topbar nav button svg{display:none}.dashboard{grid-template-columns:minmax(0,2fr) minmax(200px,1fr)}.quick-grid button{display:grid;justify-content:start}.call-layout{grid-template-columns:minmax(0,1fr) minmax(200px,25%)}.participant-preview{height:65px}}
-@media(max-width:680px){.dashboard,.settings-grid,.call-layout,.call-layout.no-chat,.login-main{grid-template-columns:minmax(0,1fr)}.login-art{min-height:170px}.shell{grid-template-columns:48px minmax(0,1fr)}.rail{padding:9px 4px}.rail-button{width:34px;height:34px}.workspace{padding:13px}.topbar nav{overflow:auto;max-width:58vw}.topbar .brand{font-size:11px;gap:4px}.window-buttons{display:none}.hero{min-height:130px;padding:15px}.quick-grid{gap:6px}.quick-grid button small{display:none}}
+@media(max-width:1120px){.topbar nav{gap:5px}.topbar nav button{padding:0 6px}.space-bottom{grid-template-columns:1fr}.room-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:950px){.topbar nav button svg{display:none}.dashboard{grid-template-columns:minmax(0,2fr) minmax(200px,1fr)}.call-layout{grid-template-columns:minmax(0,1fr) minmax(200px,25%)}.participant-preview{height:65px}}
+@media(max-width:680px){.dashboard,.settings-grid,.call-layout,.call-layout.no-chat{grid-template-columns:minmax(0,1fr)}.shell{grid-template-columns:48px minmax(0,1fr)}.rail{padding:9px 4px}.rail-button{width:34px;height:34px}.workspace{padding:13px}.topbar nav{overflow:auto;max-width:58vw}.topbar .brand{font-size:11px;gap:4px}.window-buttons{display:none}.hero{min-height:130px;padding:15px}}
 @media(prefers-reduced-motion:no-preference){button{transition:background-color .12s,color .12s,border-color .12s}}
-@media(max-height:760px) and (min-width:1000px){.workspace{padding-top:17px}.dashboard .column{gap:12px}.dashboard .hero{min-height:158px}.dashboard .game-hero{min-height:101px;padding-top:16px;padding-bottom:16px}.dashboard .panel{padding-top:12px;padding-bottom:12px}.dashboard .panel>header{margin-bottom:7px}}
+@media(max-height:760px) and (min-width:1000px){.workspace{padding-top:17px}.dashboard .column{gap:12px}.dashboard .hero{min-height:158px}.dashboard .panel{padding-top:12px;padding-bottom:12px}.dashboard .panel>header{margin-bottom:7px}}
+.waiting{height:100dvh}.waiting>.topbar>.brand{align-self:center}
+/* Entrada */
+.entry {
+  min-height: 100dvh;
+  display: grid;
+  grid-template-rows: 42px 1fr;
+  background: #151c24;
+}
+.entry-titlebar {
+  display: flex; align-items: center; justify-content: flex-end;
+  padding: 0 12px; -webkit-app-region: drag;
+}
+.entry-titlebar button { -webkit-app-region: no-drag }
+.entry-layout {
+  width: min(1216px, calc(100% - clamp(48px, 8vw, 144px)));
+  min-height: clamp(490px, 76vh, 740px);
+  align-self: center; justify-self: center; margin: 12px 0 max(30px, 5vh);
+  display: grid; grid-template-columns: 1.14fr 1fr;
+  overflow: hidden; border: 1px solid #3a454f; border-radius: 22px;
+  background: #202832; box-shadow: 0 18px 54px #070e1629;
+}
+.entry-landscape {
+  display: flex; align-items: flex-end; min-width: 0; isolation: isolate;
+  position: relative; padding: clamp(26px, 4vw, 62px);
+  background: #1b2a3a url('/serra.jpg') 88% center / cover;
+}
+.entry-landscape::before {
+  content: ''; position: absolute; inset: 0; z-index: -1;
+  background: linear-gradient(0deg, #101b26e0, transparent 47%);
+}
+.entry-wordmark { display: grid; gap: 6px; color: #f5f1e8; }
+.entry-wordmark svg { width: 50px; height: 43px; color: #addecf }
+.entry-wordmark span { font-size: clamp(36px, 4.8vw, 71px); letter-spacing: .17em; line-height: 1.05; font-weight: 570; }
+.entry-sheet { align-self: center; width: min(100%, 448px); justify-self: center; padding: 34px clamp(26px, 3vw, 45px) }
+.entry-form { display: grid; gap: 18px }
+.entry h1, .home-welcome h1 {
+  font-family: Georgia, 'Times New Roman', serif; font-weight: 400;
+  line-height: 1.12; letter-spacing: -.043em; color: #f3f1e9;
+}
+.entry h1 { font-size: clamp(32px, 3.15vw, 45px); margin: 0 0 8px }
+.entry label, .entry .password-field { display: grid; gap: 7px; color: #dce4e8; font-size: 13px; font-weight: 550 }
+.entry input:not([type=range],[type=checkbox]) {
+  width: 100%; height: 45px; border-radius: 9px; background: #1b232c;
+  border: 1px solid #44505b; padding: 0 13px; font-weight: normal; font-size: 14px;
+}
+.entry input::placeholder { color: #95a1ae; opacity: 1 }
+.entry input:focus-visible { outline: 2px solid #9adcc9; outline-offset: 1px; border-color: transparent }
+.password-control { position: relative }
+.entry .password-control input { padding-right: 46px }
+.password-control button { position: absolute; right: 4px; top: 4px; height: 37px; width: 37px; padding: 0; color: #b7c6ce; background: transparent }
+.entry-submit { min-height: 45px; margin-top: 1px; justify-content: space-between; padding: 9px 16px }
+.entry-invite { display: flex; flex-wrap: wrap; align-items: baseline; gap: 7px; font-size: 13px; color: #b4bec8 }
+.entry-invite button, .entry-back, .network-toggle, .text-action { padding: 0; border: 0; border-radius: 3px; background: transparent; font-size: 13px; width: fit-content }
+.entry-invite button, .text-action { color: #a0dfcd; font-weight: 580 }
+.entry-invite button:hover, .text-action:hover, .entry-back:hover, .network-toggle:hover { background: transparent; color: #cceddf; text-decoration: underline; text-underline-offset: 3px }
+.entry-back { gap: 5px; color: #b0bfca }
+.entry-hint { line-height: 1.55; color: #bec9d2; margin: -12px 0 2px }
+.entry-error { font-size: 13px; line-height: 1.45; color: #ffd1c4; padding: 3px 0 3px 11px; border-left: 2px solid #df9b87 }
+.entry-network { margin-top: 26px; padding-top: 15px; border-top: 1px solid #36414c }
+.network-toggle { color: #afbec8; min-height: 26px; gap: 7px }
+.network-toggle[aria-expanded=true] svg:last-child, .home-updates[open] summary svg { transform: rotate(180deg) }
+.network-fields { display: grid; gap: 9px; margin-top: 10px }
+.entry-form .entry-submit:disabled { opacity: .7 }
+
+/* Início e navegação */
+.home { width: min(100%, 1320px); margin: clamp(5px, 2.3vh, 24px) auto; display: grid; gap: 20px }
+.home-landscape {
+  position: relative; isolation: isolate; display: flex; align-items: flex-end;
+  min-height: clamp(238px, 35vh, 380px); padding: clamp(26px, 3.5vw, 53px);
+  overflow: hidden; border: 1px solid #404f5e; border-radius: 18px;
+  background: #1c2b3c url('/serra.jpg') center 55% / cover;
+}
+.home-landscape::before {
+  content: ''; position: absolute; inset: 0; z-index: -1;
+  background: linear-gradient(90deg, #12202bdf, #14233290 36%, transparent 76%), linear-gradient(0deg, #111e2b62, transparent 55%);
+}
+.home-welcome { max-width: 85%; min-width: 0 }
+.home-welcome h1 { font-size: clamp(35px, 3.7vw, 58px); text-wrap: balance; overflow-wrap: anywhere; margin-bottom: 22px }
+.home-call-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 10px }
+.home-call-actions button { min-height: 41px; padding: 8px 15px; border-radius: 9px }
+.home-join { color: #ecf1f3; background: #202d3bea; border-color: #53616f }
+.home-join:hover { background: #344555 }
+.home-destinations { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px }
+.destination {
+  width: 100%; min-height: 94px; padding: 17px 21px; gap: 15px; justify-content: flex-start;
+  border: 1px solid var(--line); border-radius: 14px; background: var(--panel);
+}
+.destination>svg { margin-left: auto; color: #afbdc8 }
+.destination strong { display: block; font-size: 16px; font-weight: 600 }
+.destination small { display: block; margin-top: 3px; color: #b7c1cd }
+.destination-icon { flex: none; display: grid; place-items: center; width: 47px; height: 47px; background: #293d39; color: #9bdbca; border-radius: 13px }
+.destination-icon.lavender { background: #393747; color: #c4b8dd }
+.destination:hover { background: #28333f; border-color: #53626f }
+.home-updates { border-top: 1px solid var(--line); color: var(--dim) }
+.home-updates summary { cursor: pointer; display: flex; align-items: center; gap: 9px; padding: 13px 2px; width: fit-content; border-radius: 4px; list-style: none }
+.home-feed { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(280px,100%),1fr)); gap: 16px }
+.topbar nav button { font-weight: 520; padding: 0 12px }
+.profile-settings { position: relative; border-radius: 50% }
+.profile-settings>svg { position: absolute; right: -2px; bottom: 0; background: var(--bar); box-sizing: content-box; padding: 2px; border-radius: 50%; color: #cbd5db }
+@media(max-height:700px) and (min-width:681px) {
+  .entry-layout { min-height: 430px; margin: 4px 0 24px }
+  .entry-sheet { padding-top: 22px; padding-bottom: 22px }
+  .entry-form { gap: 12px }
+  .entry-network { margin-top: 16px }
+}
+@media(max-width:680px) {
+  .entry-layout { width: calc(100% - 32px); grid-template-columns: 1fr; min-height: 0 }
+  .entry-landscape { min-height: 130px; padding: 20px; background-position: center 53% }
+  .entry-wordmark { display: flex; align-items: center; gap: 12px }
+  .entry-wordmark svg { width: 28px; height: 28px }
+  .entry-wordmark span { font-size: 26px }
+  .entry-sheet { padding: 25px }
+  .home-destinations { grid-template-columns: 1fr; gap: 9px }
+  .destination { min-height: 70px; padding: 11px 14px }
+  .home-welcome { max-width: 100% }
+}
+@media(prefers-reduced-motion:no-preference) {
+  .entry-sheet, .home { animation: settle-in .18s ease-out }
+  @keyframes settle-in { from { opacity: .65; transform: translateY(3px) } to { opacity: 1; transform: none } }
+}
+.collection-empty { padding: clamp(25px, 5vw, 65px); display: grid; justify-items: center; gap: 10px; text-align: center; border: 1px solid var(--line); border-radius: 15px; background: var(--panel) }
+.collection-empty>svg { color: var(--green); margin-bottom: 3px }
+.collection-empty h2 { font-size: 21px; font-weight: 580 }
+.collection-empty p { color: var(--dim); max-width: 45ch }
+.collection-empty>button,.collection-empty>.inline { margin-top: 8px }

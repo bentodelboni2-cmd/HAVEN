@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
-import { ArrowRight, Minus, Mountain, Settings, Square, X } from 'lucide-react'
-import { client, describe, endpoint } from './api'
+import { Minus, Mountain, Square, X } from 'lucide-react'
+import { describe } from './api'
 import type { Api, Snapshot } from './api'
 import { Avatar, Panel, SectionTitle } from './components'
 import { profiles } from './media'
@@ -13,42 +13,6 @@ export function WindowButtons(){
     <button className="icon" aria-label="Minimizar" onClick={()=>void window.haven!.window('min')}><Minus size={17}/></button>
     <button className="icon" aria-label="Alternar maximização" onClick={()=>void window.haven!.window('max')}><Square size={13}/></button>
     <button className="icon window-close" aria-label="Fechar HAVEN" onClick={()=>void window.haven!.window('close')}><X size={18}/></button>
-  </div>
-}
-export function Login({base,authorized}:{base:string;authorized:(base:string,token:string)=>void}){
-  const [register,setRegister]=useState(false)
-  const [showNetwork,setNetwork]=useState(false)
-  const [url,setUrl]=useState(base)
-  const [loading,setLoading]=useState(false)
-  const [error,setError]=useState('')
-  async function submit(e:FormEvent<HTMLFormElement>){
-    e.preventDefault()
-    const data=Object.fromEntries(new FormData(e.currentTarget))
-    setLoading(true);setError('')
-    try{
-      const address=endpoint(url)
-      const {token}=await client(address).json<{token:string}>(register?'/auth/register':'/auth/login',data)
-      authorized(address,token)
-    }catch(error){setError(describe(error))}
-    finally{setLoading(false)}
-  }
-  return <div className="login">
-    <header className="topbar"><Brand/><WindowButtons/></header>
-    <main className="login-main">
-      <section className="login-art"><div><Brand/><h1>Seu lugar para estar junto.</h1><p>Espaços e chamadas privadas para o seu grupo.</p></div></section>
-      <form className="login-form" onSubmit={submit}>
-        <h1>{register?'Criar conta':'Entrar no HAVEN'}</h1>
-        {register&&<label>Nome<input name="name" maxLength={48} required autoComplete="nickname"/></label>}
-        <label>Usuário<input name="handle" required minLength={3} maxLength={24} autoComplete="username"/></label>
-        <label>Senha<input name="password" required minLength={10} maxLength={128} type="password" autoComplete={register?'new-password':'current-password'}/></label>
-        {register&&<label>Código de convite<input name="invite" required maxLength={43} autoComplete="off"/></label>}
-        {showNetwork&&<label>Endereço do servidor<input value={url} onChange={e=>setUrl(e.target.value)} required type="url"/></label>}
-        {error&&<p className="notice" role="alert">{error}</p>}
-        <button className="accent" disabled={loading}>{loading?'Conectando…':register?'Criar conta':'Entrar'} <ArrowRight size={17}/></button>
-        <div className="login-links"><button className="quiet" type="button" onClick={()=>{setRegister(!register);setError('')}}>{register?'Já tenho conta':'Tenho um convite'}</button>
-          <button className="quiet" type="button" onClick={()=>setNetwork(!showNetwork)}><Settings size={16}/> Rede</button></div>
-      </form>
-    </main>
   </div>
 }
 export function Form({children,submit,label='Salvar'}:{children:ReactNode;submit:(data:FormData)=>Promise<void>;label?:string}){

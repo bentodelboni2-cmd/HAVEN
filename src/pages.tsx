@@ -1,4 +1,4 @@
-import { ArrowRight, Gamepad2, Hash, MessageSquare, Monitor, Phone, Plus, Radio, Settings, Volume2 } from 'lucide-react'
+import { ArrowLeft, ArrowRight, ChevronDown, Hash, LayoutGrid, MessageSquare, Users, Phone, Plus, Radio, Settings, Volume2 } from 'lucide-react'
 import type { Api, Channel, Snapshot, Space, Thread } from './api'
 import { online } from './api'
 import { Avatar, Conversation, Empty, Events, Panel, Recent, SectionTitle } from './components'
@@ -14,35 +14,62 @@ function VoiceActivity({data,onVoice,space}:{data:Snapshot;onVoice:Voice;space?:
   })
   return list.length ? list.map(o=><button className="feed-button" key={o.room} onClick={()=>onVoice(o.channel)}><span className="glyph"><Radio size={17}/></span><div><strong>{o.channel.name}</strong><small>{o.total} {o.total===1?'participante':'participantes'}{o.screens.length>0?' · '+o.screens.join(', ')+' compartilhando':''}</small></div><ArrowRight size={16}/></button>) : <Empty>Nenhuma sala de voz em atividade.</Empty>
 }
-export function Home({data,open,onVoice,quick,share,join,group,goFriends,busy}:{data:Snapshot;open:Open;onVoice:Voice;quick:()=>void;share:()=>void;join:()=>void;group:()=>void;goFriends:()=>void;busy:boolean}){
-  const friends=data.friends.filter(f=>f.accepted&&online(f))
-  return <><SectionTitle>Início</SectionTitle><div className="dashboard">
-    <div className="column">
-      <section className="hero"><div><h2>Boas-vindas, {data.me.name}.</h2><p>Seu espaço para conversar, jogar e compartilhar.</p></div></section>
-      <div className="quick-grid">
-        <button onClick={quick} disabled={busy}><span className="glyph"><Phone size={20}/></span><div><strong>Chamada rápida</strong><small>Crie uma chamada privada</small></div></button>
-        <button onClick={share} disabled={busy}><span className="glyph lavanda"><Monitor size={20}/></span><div><strong>Compartilhar tela</strong><small>Mostre uma tela ou janela</small></div></button>
-        <button onClick={join}><span className="glyph azul"><Hash size={20}/></span><div><strong>Entrar com código</strong><small>Entre em uma chamada</small></div></button>
+type HomeProps = {
+  data: Snapshot; open: Open; onVoice: Voice
+  call: () => void; join: () => void; goFriends: () => void; goSpaces: () => void
+  active: boolean; busy: boolean
+}
+
+export function Home({ data, open, onVoice, call, join, goFriends, goSpaces, active, busy }: HomeProps) {
+  const onlineCount = data.friends.filter(friend => friend.accepted && online(friend)).length
+  const upcoming = data.events.filter(event => event.starts > Date.now()).slice(0, 2)
+  const hasUpdates = data.latest.length > 0 || upcoming.length > 0
+  return <div className="home">
+    <section className="home-landscape" aria-labelledby="greeting">
+      <div className="home-welcome">
+        <h1 id="greeting">Olá, {data.me.name}.</h1>
+        <div className="home-call-actions">
+          <button className="accent" disabled={busy} onClick={call}><Phone size={17}/>{active ? 'Voltar à chamada' : 'Iniciar chamada'}</button>
+          <button className="home-join" disabled={busy} onClick={join}><Hash size={17}/>Entrar com código</button>
+        </div>
       </div>
-      <Panel title="Ao vivo agora"><VoiceActivity data={data} onVoice={onVoice}/></Panel>
-      <Panel title="Amigos online" action={<button className="quiet" onClick={goFriends}>Ver amigos <ArrowRight size={15}/></button>}>{friends.length?<div className="people">{friends.map(p=><button className="quiet person-chip" key={p.id} onClick={()=>open({kind:'dm',target:p.id},p.name)}><Avatar p={p} presence/>{p.name}</button>)}</div>:<Empty>Nenhum amigo online agora.</Empty>}</Panel>
-      <section className="hero game-hero"><div><h2><Gamepad2 size={23}/> Sessão de jogos</h2><button className="quiet" onClick={group}>Convidar amigos <ArrowRight size={15}/></button></div></section>
+    </section>
+    <div className="home-destinations">
+      <button className="destination" onClick={goFriends}>
+        <span className="destination-icon lavender"><Users size={23}/></span>
+        <span><strong>Ver amigos</strong>{onlineCount > 0 && <small>{onlineCount} online agora</small>}</span><ArrowRight size={18}/>
+      </button>
+      <button className="destination" onClick={goSpaces}>
+        <span className="destination-icon"><LayoutGrid size={22}/></span>
+        <span><strong>{data.spaces.length ? 'Meus espaços' : 'Entrar em um espaço'}</strong>{!data.spaces.length && <small>Com um convite do grupo</small>}</span><ArrowRight size={18}/>
+      </button>
     </div>
-    <aside className="column"><Panel title="Mensagens recentes"><Recent items={data.latest} open={open}/></Panel><Panel title="Próximos encontros"><Events events={data.events} spaces={data.spaces}/></Panel></aside>
-  </div></>
+    {data.occupancy.length > 0 && <Panel title="Salas em atividade"><VoiceActivity data={data} onVoice={onVoice}/></Panel>}
+    {hasUpdates && <details className="home-updates"><summary>Recentes e agenda<ChevronDown size={16}/></summary>
+      <div className="home-feed">
+        {data.latest.length > 0 && <Panel title="Mensagens recentes"><Recent items={data.latest.slice(0, 3)} open={open}/></Panel>}
+        {upcoming.length > 0 && <Panel title="Próximos encontros"><Events events={upcoming} spaces={data.spaces}/></Panel>}
+      </div>
+    </details>}
+  </div>
 }
 export function Spaces({data,space,api,version,notify,open,openSpace,onVoice,edit,invite,create,join,editRoom,event,role,activeRoom}:{
   data:Snapshot;space?:Space;api:Api;version:number;notify:(e:unknown)=>void;open:Open;openSpace:(id:string)=>void;onVoice:Voice
   edit:(s:Space)=>void;invite:(s:Space)=>void;create:()=>void;join:()=>void;editRoom:(s:Space,r?:Channel)=>void;event:(s:Space)=>void;role:(s:Space,user:string,role:string)=>void;activeRoom?:string
 }){
-  if(!space)return <><div className="heading"><SectionTitle>Espaços</SectionTitle><div className="inline"><button className="quiet" onClick={join}>Entrar com convite</button><button className="accent" onClick={create}><Plus size={17}/> Criar espaço</button></div></div>
-    {data.spaces.length?<div className="space-list">{data.spaces.map(s=><button key={s.id} className={'hero space-entry '+s.theme} onClick={()=>openSpace(s.id)}><h2>{s.name}</h2><p>{s.description||roles[s.role]}</p><ArrowRight size={20}/></button>)}</div>:<Panel title="Seus espaços"><Empty>Crie um espaço para seu grupo ou entre com um convite.</Empty></Panel>}</>
+  if(!space) {
+    const actions=<div className="inline wrap"><button className="accent" onClick={join}>Entrar com convite</button><button className="quiet" onClick={create}><Plus size={16}/> Criar espaço</button></div>
+    return <><div className="heading"><SectionTitle>Espaços</SectionTitle>{data.spaces.length>0&&actions}</div>
+      {data.spaces.length ? <div className="space-list">{data.spaces.map(s=><button key={s.id} className={'hero space-entry '+s.theme} onClick={()=>openSpace(s.id)}><h2>{s.name}</h2><p>{s.description||roles[s.role]}</p><ArrowRight size={20}/></button>)}</div> :
+      <section className="collection-empty"><LayoutGrid size={27}/><h2>Seu primeiro espaço</h2><p>Entre com o convite do seu grupo ou crie um espaço para reunir os amigos.</p>{actions}</section>}
+    </>
+  }
   const canEdit=space.role!=='member'
   const rooms=data.rooms.filter(room=>room.space===space.id)
   const members=data.members.filter(m=>m.space===space.id)
-  return <><div className="heading"><SectionTitle>{space.name}</SectionTitle>{canEdit&&<div className="inline"><button className="quiet" onClick={()=>edit(space)}><Settings size={16}/> Editar</button><button className="quiet" onClick={()=>invite(space)}><Plus size={17}/> Convidar</button></div>}</div>
+  return <><div className="heading"><button className="quiet" onClick={()=>openSpace('')}><ArrowLeft size={16}/> Todos os espaços</button>{canEdit&&<div className="inline"><button className="quiet" onClick={()=>edit(space)}><Settings size={16}/> Editar</button><button className="quiet" onClick={()=>invite(space)}><Plus size={17}/> Convidar</button></div>}</div>
     <div className="dashboard"><div className="column">
-      <section className={'hero '+space.theme}><div><h2>{space.name}</h2>{space.description&&<p>{space.description}</p>}<small>{members.length} {members.length===1?'membro':'membros'} · {roles[space.role]}</small></div></section>
+      <section className={'hero '+space.theme}><div><h1>{space.name}</h1>{space.description&&<p>{space.description}</p>}<small>{members.length} {members.length===1?'membro':'membros'} · {roles[space.role]}</small></div></section>
       <Panel title="Salas" action={canEdit&&<button className="quiet" onClick={()=>editRoom(space)}><Plus size={16}/> Nova sala</button>}>
         <div className="room-grid">{rooms.map(r=><div className={'room-card '+(activeRoom===r.id?'selected':'')} key={r.id}>
           <button className="feed-button" onClick={()=>r.kind==='voice'?onVoice(r):open({kind:'room',target:r.id},r.name)}><span className="glyph">{r.kind==='voice'?<Volume2 size={18}/>:<Hash size={18}/>}</span><div><strong>{r.name}</strong><small>{r.kind==='voice'?(data.occupancy.find(o=>o.room===r.id)?.total||0)+' na sala':(data.unread[r.id]||0)+' não lidas'}</small></div></button>
@@ -61,9 +88,13 @@ export function Spaces({data,space,api,version,notify,open,openSpace,onVoice,edi
     </aside></div></>
 }
 export function Friends({data,add,open,call,respond}:{data:Snapshot;add:()=>void;open:Open;call:(id:string,name:string)=>void;respond:(id:string,accept:boolean)=>void}){
+  if(!data.friends.length)return <><SectionTitle>Amigos</SectionTitle><section className="collection-empty">
+    <Users size={27}/><h2>Encontre seu primeiro amigo</h2><p>Adicione alguém pelo nome de usuário para conversar ou ligar.</p>
+    <button className="accent" onClick={add}><Plus size={16}/> Adicionar amigo</button>
+  </section></>
   return <><div className="heading"><SectionTitle>Amigos</SectionTitle><button className="accent" onClick={add}><Plus size={17}/> Adicionar amigo</button></div>
-    <Panel title="Seus amigos">{data.friends.length?<ul className="feed friends">{data.friends.map(f=><li key={f.id}><Avatar p={f} presence/><div><strong>{f.name}</strong><small>@{f.handle} · {f.accepted?(online(f)?'Online':'Offline'):f.sender===data.me.id?'Pedido enviado':'Pedido recebido'}</small></div>
+    <Panel title="Seus amigos"><ul className="feed friends">{data.friends.map(f=><li key={f.id}><Avatar p={f} presence/><div><strong>{f.name}</strong><small>@{f.handle} · {f.accepted?(online(f)?'Online':'Offline'):f.sender===data.me.id?'Pedido enviado':'Pedido recebido'}</small></div>
       {f.accepted?<div className="inline"><button className="quiet" onClick={()=>open({kind:'dm',target:f.id},f.name)}><MessageSquare size={17}/> Mensagem {data.unread[f.id]||''}</button><button className="quiet" onClick={()=>call(f.id,f.name)}><Phone size={17}/> Ligar</button></div>:
         f.sender!==data.me.id&&<div className="inline">{[true,false].map(accept=><button key={String(accept)} className={accept?'accent':'quiet'} onClick={()=>respond(f.id,accept)}>{accept?'Aceitar':'Recusar'}</button>)}</div>}
-    </li>)}</ul>:<Empty>Adicione alguém pelo nome de usuário.</Empty>}</Panel></>
+    </li>)}</ul></Panel></>
 }
