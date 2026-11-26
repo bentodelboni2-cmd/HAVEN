@@ -25,9 +25,20 @@ test('contas privadas, histórico persistente, arquivos e autorização do LiveK
   db.prepare('UPDATE invites SET expires=0 WHERE hash=?').run(digest(expired))
   await register('expired',expired,403)
   const one = issueInvite(db)
-  const alice = (await register('alice',one)).token
+  const remembered=await request('/auth/register',{payload:{...credentials('alice'),invite:one,remember:true}})
+  assert.equal(remembered.remembered,true)
+  const alice=remembered.token
+  assert.equal(db.prepare('SELECT expires FROM sessions WHERE hash=?').get(digest(alice)).expires,0)
   await register('used',one,403)
-  const bob = (await register('bobby',issueInvite(db))).token
+  await register('bobby',issueInvite(db))
+  const persistentLogin=await request('/auth/login',{payload:{...credentials('bobby'),remember:true}})
+  assert.equal(persistentLogin.remembered,true)
+  const bob=persistentLogin.token
+  const finite=await request('/auth/login',{payload:{...credentials('bobby'),remember:false}})
+  assert.equal(finite.remembered,false)
+  assert.ok(db.prepare('SELECT expires FROM sessions WHERE hash=?').get(digest(finite.token)).expires>Date.now())
+  db.prepare('UPDATE sessions SET expires=? WHERE hash=?').run(Date.now()-1,digest(finite.token))
+  await request('/state',{token:finite.token,status:401})
   const outsider = (await register('tranger',issueInvite(db))).token
   const a = (await request('/state',{token:alice})).me
   const b = (await request('/state',{token:bob})).me
@@ -134,4 +145,7 @@ test('contas privadas, histórico persistente, arquivos e autorização do LiveK
   db=openDb(file)
   app=makeServer(db,config)
   assert.equal((await request(history,{token:returned})).rows[0].body,'Mensagem real de integração')
+  assert.equal((await request('/state',{token:alice})).me.handle,'alice')
+  await request('/logout',{token:alice,payload:{}})
+  await request('/state',{token:alice,status:401})
 })

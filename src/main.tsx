@@ -131,16 +131,17 @@ function App() {
     setUpdate(null)
   }
   if(restoring)return <div className="waiting"><main role="status">Restaurando sua sessão…</main></div>
-  if(!token)return <Login base={base} authorized={async (address,next,created,remember)=>{
+  if(!token)return <Login base={base} authorized={async (address,next,created,remember,remembered)=>{
+    if(created)notify('Conta criada. Boas-vindas ao HAVEN!')
     if(window.haven) {
       if(remember) {
         const saved=await window.haven.saveSession({base:address,token:next}).catch(()=>false)
         if(!saved)notify('A sessão ficará ativa até fechar o HAVEN.')
+        else if(!remembered)notify('Este servidor ainda usa sessões com prazo de validade.')
       } else {
         await window.haven.clearSession().catch(()=>{throw new Error('Não foi possível limpar a sessão salva neste PC.')})
       }
     }
-    if(created)notify('Conta criada. Boas-vindas ao HAVEN!')
     localStorage.setItem(accountServerKey,address);setBase(address);setToken(next);refresh()
   }}/>
   if(!data)return <div className="waiting"><header className="topbar"><Brand/><WindowButtons/></header><main><h1>{connection||'Conectando ao HAVEN…'}</h1>

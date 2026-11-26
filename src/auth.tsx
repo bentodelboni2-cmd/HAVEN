@@ -20,14 +20,14 @@ async function accountServer(value: string) {
   throw new Error(connectionMessage(address,new TypeError(),false))
 }
 
-export function Login({ base, authorized }: { base: string; authorized: (address: string, token: string, created: boolean, remember: boolean) => Promise<void> }) {
+export function Login({ base, authorized }: { base: string; authorized: (address: string, token: string, created: boolean, remember: boolean, remembered: boolean) => Promise<void> }) {
   const [step, setStep] = useState<Step>('login')
   const [invite, setInvite] = useState('')
   const [name, setName] = useState('')
   const [handle, setHandle] = useState('')
   const [password, setPassword] = useState('')
   const [reveal, setReveal] = useState(false)
-  const [remember, setRemember] = useState(()=>localStorage.getItem('haven.remember')!=='0')
+  const [remember, setRemember] = useState(()=>Boolean(window.haven)&&localStorage.getItem('haven.remember')!=='0')
   const [address, setAddress] = useState(base)
   const [network, setNetwork] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -59,9 +59,9 @@ export function Login({ base, authorized }: { base: string; authorized: (address
     try {
       const origin = await accountServer(address)
       const created = step === 'profile'
-      const body = created ? { handle, password, name, invite: invite.trim() } : { handle, password }
-      const result = await client(origin).json<{token: string}>(created ? '/auth/register' : '/auth/login', body, AbortSignal.timeout(15000))
-      await authorized(origin, result.token, created, remember)
+      const body = created ? { handle, password, name, invite: invite.trim(), remember } : { handle, password, remember }
+      const result = await client(origin).json<{token: string; remembered?: boolean}>(created ? '/auth/register' : '/auth/login', body, AbortSignal.timeout(15000))
+      await authorized(origin, result.token, created, remember, result.remembered===true)
     } catch (cause) {
       if (step === 'profile' && cause instanceof ApiError && cause.status === 403) {
         setStep('invite')

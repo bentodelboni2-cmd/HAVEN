@@ -96,11 +96,12 @@ export function makeServer(db, config) {
     reply.code(status).send({ error: status === 500 ? 'Serviço temporariamente indisponível.' : error.message })
   })
 
-  const session = user => {
+  const activeSession = '(expires=0 OR expires>?)'
+  const session = (user, remember) => {
     const token = secret()
-    run('DELETE FROM sessions WHERE expires <= ?', clock())
-    run('INSERT INTO sessions VALUES(?,?,?)',digest(token),user,clock() + 7 * DAY)
-    return { token }
+    run('DELETE FROM sessions WHERE expires>0 AND expires<=?', clock())
+    run('INSERT INTO sessions VALUES(?,?,?)',digest(token),user,remember?0:clock() + 7 * DAY)
+    return { token, remembered:remember }
   }
   const membership = (space, u) => get('SELECT role FROM members WHERE space=? AND user=?',space,u)
   const accessSpace = (space, u, edit = false) => {
@@ -138,7 +139,7 @@ export function makeServer(db, config) {
   const secure = (method,url,fn,options) => app.route({ method,url,...options, handler: async (q, reply) => {
     const token = q.headers.authorization?.match(/^Bearer ([\w-]{43})$/)?.[1]
     const hash = token && digest(token)
-    const user = hash && get('SELECT ' + person + ' FROM users u JOIN sessions s ON s.user=u.id WHERE s.hash=? AND s.expires>? AND u.id NOT IN (SELECT user FROM disabled_users)',hash,clock())
+    const user = hash && get('SELECT ' + person + ' FROM users u JOIN sessions s ON s.user=u.id WHERE s.hash=? AND ' + activeSession + ' AND u.id NOT IN (SELECT user FROM disabled_users)',hash,clock())
     if (!user) throw fail(401,'Entre com sua conta.')
     if (user.seen + 10000 < clock()) run('UPDATE users SET seen=? WHERE id=?',clock(),user.id)
     const result = await fn(q, user, reply, hash)
@@ -156,7 +157,7 @@ export function makeServer(db, config) {
     const { handle,password } = credentials(body || {})
     const user = get('SELECT id,password FROM users WHERE handle=?',handle)
     if (!(await passwordMatches(password,user?.password)) || !user || get('SELECT 1 FROM disabled_users WHERE user=?',user.id)) throw fail(401,'Usuário ou senha inválidos.')
-    return session(user.id)
+    return session(user.id,body?.remember===true)
   })
   app.post('/auth/register', async ({ body }) => {
     const { handle,password } = credentials(body || {})
@@ -173,7 +174,7 @@ export function makeServer(db, config) {
       run('INSERT INTO users(id,handle,name,password) VALUES(?,?,?,?)',uid,handle,name,encoded)
       run('UPDATE invites SET uses=uses-1 WHERE hash=?',hash)
       if (invite.space) run('INSERT INTO members VALUES(?,?,?)',invite.space,uid,'member')
-      return session(uid)
+      return session(uid,body?.remember===true)
     })
   })
   POST('/logout', (_,u,reply,hash) => {
@@ -193,7 +194,7 @@ export function makeServer(db, config) {
     list.add(stream)
     streams.set(hash,list)
     const keep = setInterval(() => {
-      if (!get('SELECT 1 FROM sessions WHERE hash=? AND expires>?',hash,clock())) stream.end()
+      if (!get('SELECT 1 FROM sessions WHERE hash=? AND ' + activeSession,hash,clock())) stream.end()
       else if (!stream.writableNeedDrain) stream.write(': atividade\n\n')
     },20000)
     stream.on('close', () => {

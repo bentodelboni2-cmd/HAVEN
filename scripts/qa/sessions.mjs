@@ -23,6 +23,7 @@ try {
   const {readFileSync}=await import('node:fs')
   const encrypted=readFileSync(sessionFile)
   assert.ok(encrypted.length>40)
+  assert.equal(db.prepare('SELECT expires FROM sessions').get().expires,0)
   assert.ok(!encrypted.includes(Buffer.from(origin)))
   assert.ok(!encrypted.includes(Buffer.from(pass)))
   const first=children.at(-1)

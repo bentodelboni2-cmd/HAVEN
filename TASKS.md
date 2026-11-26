@@ -52,3 +52,8 @@ O executável passou no fluxo de cadastro por convite, saída e novo login com u
 
 - O endereço padrão é o túnel HTTPS do HAVEN. A migração troca o antigo padrão LAN e as sessões desse endereço. Escolhas manuais feitas na nova versão e demais endereços são preservados.
 - Lembrar de mim vem marcado. A sessão criptografada pode ser restaurada até o vencimento do token. Com a opção desmarcada, o token fica apenas em memória. Testado com o Windows empacotado.
+
+## Sessões 0.4.3
+
+- Cadastro e login com Lembrar de mim emitem sessão sem vencimento. As sessões anteriores conservam seu prazo. A sessão continua revogável por logout online e suspensão.
+- Validados no backend o login, cadastro, persistência após reinício, expiração das sessões temporárias e revogação.
