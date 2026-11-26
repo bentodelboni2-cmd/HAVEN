@@ -23,3 +23,9 @@ O script `node scripts/tablet-livekit-patch.mjs protocol RAIZ_DO_MÓDULO` ou `no
 - O backend pode servir uma pasta de versões. O desktop valida assinatura Ed25519, versão e SHA-256 antes de abrir o instalador. O endereço padrão do cliente pode ser alterado em build via VITE_HAVEN_SERVER e em execução nos ajustes.
 
 - Acesso direto no Samsung é um perfil opt-in. Caddy termina HTTPS/WSS em portas não privilegiadas, o backend e a API do LiveKit ficam em loopback, e o roteador entrega ICE TCP/UDP ao LiveKit. .env.public sobrepõe a rede, preservando SQLite, .env e binário.
+
+## Interface e mídia 0.5.0
+
+- Os sons são buffers mono sintetizados no cliente a partir das frases criadas no Astra. Um som toca por vez. As chamadas usam o prazo existente do convite e notificações são silenciadas durante a captura de áudio do sistema.
+- Com SSE ativo, a consulta periódica de estado passa de 12 para 24 s e deixa de requisitar novamente as conversas. Em caso de queda, a consulta a cada 12 s continua, e o SSE é reaberto com atraso progressivo.
+- Os elementos de mídia permanecem montados durante a navegação. A tela oculta suspende a telemetria e a conversa. O LiveKit decide quando pausar a recepção de vídeo oculto. Os indicadores de fala atualizam somente o cartão do participante.

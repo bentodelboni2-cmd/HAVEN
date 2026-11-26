@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react'
-import { ConnectionState, Track } from 'livekit-client'
+import { memo, useEffect, useRef, useState } from 'react'
+import { ConnectionState, ParticipantEvent, Track } from 'livekit-client'
 import type { Participant } from 'livekit-client'
 import { AudioLines, Camera, CameraOff, ChevronsUp, Clipboard, Headphones, HeadphoneOff, Maximize, MessageSquare, Mic, MicOff, Monitor, MonitorOff, PhoneOff, Signal } from 'lucide-react'
 import { describe } from './api'
@@ -7,8 +7,10 @@ import type { Api, CaptureSource } from './api'
 import { Avatar, Conversation, Dialog, Empty, SectionTitle } from './components'
 import { profiles, useStats } from './media'
 import type { Media, Prefs, Quality } from './media'
+import { soundEnabled } from './feedback'
+import { soundEngine } from './sounds'
 
-function Player({track,kind,muted=false,volume=100,output='',fit=false}:{track:Track;kind:'audio'|'video';muted?:boolean;volume?:number;output?:string;fit?:boolean}) {
+const Player=memo(function Player({track,kind,muted=false,volume=100,output='',fit=false}:{track:Track;kind:'audio'|'video';muted?:boolean;volume?:number;output?:string;fit?:boolean}) {
   const node=useRef<HTMLMediaElement|null>(null)
   useEffect(()=>{
     const el=node.current
@@ -28,7 +30,7 @@ function Player({track,kind,muted=false,volume=100,output='',fit=false}:{track:T
   },[kind,output])
   return kind==='audio' ? <audio ref={el=>{node.current=el}} autoPlay muted={muted}/> :
     <video ref={el=>{node.current=el}} className={fit?'fit':undefined} autoPlay playsInline muted/>
-}
+})
 
 export function CallAudio({media,prefs}:{media:Media;prefs:Prefs}) {
   return <>{media.participants.filter(p=>p!==media.mine).flatMap(p=>[Track.Source.Microphone,Track.Source.ScreenShareAudio].map(source=>{
@@ -37,12 +39,19 @@ export function CallAudio({media,prefs}:{media:Media;prefs:Prefs}) {
   }))}</>
 }
 
-function ParticipantCard({person,mine,volume,setVolume,muted,toggleMute}:{person:Participant;mine:boolean;volume:number;setVolume:(n:number)=>void;muted:boolean;toggleMute:()=>void}) {
+function ParticipantCard({person,mine,volume,setVolume,muted,toggleMute,visible}:{person:Participant;mine:boolean;volume:number;setVolume:(n:number)=>void;muted:boolean;toggleMute:()=>void;visible:boolean}) {
   const name=person.name || 'Participante'
   const video=person.getTrackPublication(Track.Source.Camera)
-  return <article className={'participant '+(person.isSpeaking?'speaking':'')}>
+  const [speaking,setSpeaking]=useState(person.isSpeaking)
+  useEffect(()=>{
+    if(!visible)return
+    setSpeaking(person.isSpeaking)
+    person.on(ParticipantEvent.IsSpeakingChanged,setSpeaking)
+    return ()=>{person.off(ParticipantEvent.IsSpeakingChanged,setSpeaking)}
+  },[person,visible])
+  return <article className={'participant '+(speaking?'speaking':'')}>
     <div className="participant-preview">{video?.track&&!video.isMuted ? <Player track={video.track} kind="video"/> : <Avatar p={{name,color:mine?'verde':'lavanda'}}/>}</div>
-    <div className="participant-label"><strong>{mine?'Você':name}</strong>{person.isSpeaking?<AudioLines size={15} className="green"/>:person.isMicrophoneEnabled?<Mic size={14}/>:<MicOff size={14}/>}</div>
+    <div className="participant-label"><strong>{mine?'Você':name}</strong>{speaking?<AudioLines size={15} className="green"/>:person.isMicrophoneEnabled?<Mic size={14}/>:<MicOff size={14}/>}</div>
     {!mine&&<div className="participant-audio">
       <button className="icon" aria-label={(muted?'Reativar áudio de ':'Silenciar ')+name} title={muted?'Reativar só para mim':'Silenciar só para mim'} aria-pressed={muted} onClick={toggleMute}>{muted?<HeadphoneOff size={15}/>:<Headphones size={15}/>}</button>
       <input type="range" min={0} max={100} value={volume} aria-label={'Volume de '+name} onChange={e=>setVolume(+e.target.value)}/>
@@ -50,7 +59,12 @@ function ParticipantCard({person,mine,volume,setVolume,muted,toggleMute}:{person
   </article>
 }
 
-export function CallView({api,media,prefs,save,notify,me,version}:{api:Api;media:Media;prefs:Prefs;save:(p:Prefs)=>void;notify:(e:unknown)=>void;me:string;version:number}) {
+function StageStats({track,requested,local}:{track?:Track;requested?:Quality;local:boolean}) {
+  const stats=useStats(track)
+  return <small>{stats?(local?'Enviado · ':'Recebido · ')+stats:'Aguardando métricas WebRTC'}{requested?' · solicitado '+requested:''}</small>
+}
+
+export function CallView({api,media,prefs,save,notify,me,version,visible,legacyMessageSound}:{api:Api;media:Media;prefs:Prefs;save:(p:Prefs)=>void;notify:(e:unknown)=>void;me:string;version:number;visible:boolean;legacyMessageSound:boolean}) {
   const [chat,setChat]=useState(true)
   const [selected,setSelected]=useState('')
   const [expanded,setExpanded]=useState(false)
@@ -59,8 +73,9 @@ export function CallView({api,media,prefs,save,notify,me,version}:{api:Api;media
   const surface=useRef<HTMLElement>(null)
   const current=media.active
   const focused=media.shares.find(s=>s.person.identity===selected)||media.shares[0]
-  const stats=useStats(focused?.publication.track)
   useEffect(()=>{
+    if(!visible)return
+    const stage=surface.current
     const change=()=>setFullscreen(document.fullscreenElement===surface.current)
     const escape=(event:KeyboardEvent)=>{ if(event.key==='Escape')setExpanded(false) }
     document.addEventListener('fullscreenchange',change)
@@ -68,9 +83,9 @@ export function CallView({api,media,prefs,save,notify,me,version}:{api:Api;media
     return ()=>{
       document.removeEventListener('fullscreenchange',change)
       document.removeEventListener('keydown',escape)
-      if(document.fullscreenElement===surface.current)void document.exitFullscreen().catch(()=>{})
+      if(stage&&document.fullscreenElement===stage)void document.exitFullscreen().catch(()=>{})
     }
-  },[])
+  },[visible])
   useEffect(()=>{
     if(!focused) {
       setExpanded(false)
@@ -100,18 +115,20 @@ export function CallView({api,media,prefs,save,notify,me,version}:{api:Api;media
         <section className={'stage'+(focused?.publication.track?' presenting':'')+(expanded?' expanded':'')} ref={surface}>
           {focused?.publication.track ? <>
             <Player track={focused.publication.track} kind="video" fit/>
-            <div className="stage-meta"><div><strong>{focused.person.name || 'Participante'}</strong><small>{stats || 'Aguardando métricas WebRTC'}{focused.person===media.mine&&media.requestedShare?' · solicitado '+media.requestedShare:''}</small></div>
+            <div className="stage-meta"><div><strong>{focused.person.name || 'Participante'}</strong><StageStats track={visible?focused.publication.track:undefined} local={focused.person===media.mine} requested={focused.person===media.mine?media.requestedShare:undefined}/></div>
               <button className="icon" aria-label={fullscreen||expanded?'Sair da tela cheia':'Tela cheia'} title={fullscreen||expanded?'Sair da tela cheia':'Tela cheia'} onClick={()=>void toggleFullScreen()}><Maximize size={17}/></button>
             </div>
           </> : <div className="stage-idle"><Monitor size={34}/><strong>Nenhuma tela compartilhada</strong><p>Use os controles de chamada para apresentar sua tela.</p></div>}
         </section>
         <div className="participant-list">{media.participants.map(p=><ParticipantCard key={p.identity} person={p} mine={p===media.mine} volume={media.sessionVolumes[p.identity]??100} setVolume={n=>media.updateVolume(p.identity,n)}
-          muted={Boolean(media.mutedParticipants[p.identity])} toggleMute={()=>media.toggleParticipantMute(p.identity)}/>)}</div>
+          muted={Boolean(media.mutedParticipants[p.identity])} toggleMute={()=>media.toggleParticipantMute(p.identity)} visible={visible}/>)}</div>
         {media.shares.length>1&&<div className="share-tabs">{media.shares.map(s=><button key={s.person.identity} className={focused?.person===s.person?'quiet selected':'quiet'} onClick={()=>setSelected(s.person.identity)}><Monitor size={15}/>{s.person.name}</button>)}</div>}
       </div>
-      {chat&&<aside className="panel call-chat">
+      {chat&&visible&&<aside className="panel call-chat">
         <header><h2><MessageSquare size={19} aria-hidden="true"/> Conversa da chamada</h2></header>
-        <Conversation key={current.id} api={api} thread={{kind:'call',target:current.id}} signal={version} me={me} notify={notify}/>
+        <Conversation key={current.id} api={api} thread={{kind:'call',target:current.id}} signal={version} me={me} notify={notify} onIncoming={legacyMessageSound?()=>{
+          if(!media.capturingAudio&&!media.hasShareAudio&&soundEnabled(prefs,'message'))void soundEngine.play('message',prefs.soundVolume)
+        }:undefined}/>
         <div className="reactions">{['👍','❤️','👏','😂'].map(reaction=><button className="icon" key={reaction} aria-label={'Reagir '+reaction} onClick={()=>void api.json('/conversations/call/'+current.id,{text:reaction}).catch(notify)}>{reaction}</button>)}</div>
       </aside>}
     </div>

@@ -38,7 +38,18 @@ export function Recent({items,open}:{items:Snapshot['latest'];open:(t:Thread,tit
 function Attachment({api,path,kind}:{api:Api;path:string;kind:string}) {
   const [url,setUrl]=useState('')
   const [error,setError]=useState(false)
+  const [near,setNear]=useState(false)
+  const placeholder=useRef<HTMLDivElement>(null)
   useEffect(()=>{
+    if(near||!placeholder.current)return
+    const observer=new IntersectionObserver(([entry])=>{
+      if(entry?.isIntersecting){observer.disconnect();setNear(true)}
+    },{rootMargin:'360px'})
+    observer.observe(placeholder.current)
+    return ()=>observer.disconnect()
+  },[near])
+  useEffect(()=>{
+    if(!near)return
     const controller=new AbortController()
     let object=''
     api.blob(path,controller.signal).then(blob=>{
@@ -47,10 +58,10 @@ function Attachment({api,path,kind}:{api:Api;path:string;kind:string}) {
       setUrl(object)
     }).catch(()=>{if(!controller.signal.aborted)setError(true)})
     return ()=>{controller.abort();if(object)URL.revokeObjectURL(object)}
-  },[api,path])
+  },[api,path,near])
   if (error) return <small>Mídia indisponível.</small>
-  if (!url) return <small>Carregando mídia…</small>
-  return kind.startsWith('image/') ? <img src={url} alt="Imagem compartilhada" loading="lazy"/> :
+  if (!url) return <div className="attachment-placeholder" ref={placeholder}><small>{near?'Carregando mídia…':'Mídia compartilhada'}</small></div>
+  return kind.startsWith('image/') ? <img src={url} alt="Imagem compartilhada" loading="lazy" decoding="async"/> :
     <video src={url} aria-label="Clipe compartilhado" controls preload="metadata"/>
 }
 
@@ -65,7 +76,7 @@ async function encodeFile(file:File) {
   return {kind:file.type,media:url.slice(url.indexOf(',')+1)}
 }
 
-export function Conversation({api,thread,signal,notify,me,wall=false,read=true}:{api:Api;thread:Thread;signal:number;notify:(e:unknown)=>void;me:string;wall?:boolean;read?:boolean}) {
+export function Conversation({api,thread,signal,notify,me,wall=false,read=true,onIncoming}:{api:Api;thread:Thread;signal:number;notify:(e:unknown)=>void;me:string;wall?:boolean;read?:boolean;onIncoming?:()=>void}) {
   const path=threadPath(thread)
   const [rows,setRows]=useState<Message[]>([])
   const [more,setMore]=useState(false)
@@ -77,12 +88,17 @@ export function Conversation({api,thread,signal,notify,me,wall=false,read=true}:
   const [retry,setRetry]=useState(0)
   const scroll=useRef<HTMLDivElement>(null)
   const latestRead=useRef(0)
+  const latestSeen=useRef(0)
+  const incoming=useRef(onIncoming)
+  incoming.current=onIncoming
   const didLoad=useRef(false)
   const fileInput=useRef<HTMLInputElement>(null)
   useEffect(()=>{
     const controller=new AbortController()
     api.json<{rows:Message[];more:boolean}>(path,undefined,controller.signal).then(data=>{
       if(controller.signal.aborted)return
+      if(didLoad.current && data.rows.some(row=>row.sender!==me&&row.id>latestSeen.current))incoming.current?.()
+      latestSeen.current=Math.max(latestSeen.current,data.rows.at(-1)?.id??0)
       const keepBottom=!didLoad.current || (scroll.current && scroll.current.scrollHeight-scroll.current.scrollTop-scroll.current.clientHeight<100)
       setFailure('')
       setRows(previous=>{
@@ -100,7 +116,7 @@ export function Conversation({api,thread,signal,notify,me,wall=false,read=true}:
       }
     }).catch(error=>{if(!controller.signal.aborted){setFailure(describe(error));setLoading(false)}})
     return ()=>controller.abort()
-  },[api,path,signal,retry,read,thread.kind,wall])
+  },[api,me,path,signal,retry,read,thread.kind,wall])
 
   async function send(e:FormEvent) {
     e.preventDefault()

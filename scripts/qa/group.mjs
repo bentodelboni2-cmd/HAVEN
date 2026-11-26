@@ -1,4 +1,4 @@
-import { app, assert, children, clients, connection, db, go, register } from './harness.mjs'
+import { app, assert, children, clients, connection, db, go, register, wait } from './harness.mjs'
 
 try {
   const a=await connection(1),b=await connection(2),c=await connection(3)
@@ -10,6 +10,7 @@ try {
     const [one,two]=[dbUser(first),dbUser(second)].sort()
     db.prepare('INSERT INTO friends VALUES(?,?,?,1)').run(one,two,one)
   }
+  for(const client of [a,b,c])await client.evalJs("window.dispatchEvent(new Event('online'))")
   await a.click('Amigos')
   await a.visible('Validação 2')
   const findFriend=async (client,name,button)=>go(()=>client.evalJs(`(()=>{const row=[...document.querySelectorAll('li')].find(el=>el.querySelector('strong')?.textContent===${JSON.stringify(name)}); const control=[...(row?.querySelectorAll('button')??[])].find(el=>el.textContent.trim()===${JSON.stringify(button)}); if(!control)return false;control.click();return true})()`),'controle de '+name)
@@ -38,6 +39,15 @@ try {
   assert.ok(!await c.evalJs("document.querySelector('audio').muted"))
   await c.evalJs(`(()=>{const el=document.querySelector('[aria-label="Volume de Validação 1"]');Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(el,'32');el.dispatchEvent(new Event('input',{bubbles:true}))})()`)
   await go(()=>c.evalJs("Math.abs(document.querySelector('audio').volume-.32)<.01"),'volume individual')
+  if(process.argv.includes('--soak')){
+    await c.evalJs("window.qaGroupAudio=document.querySelector('audio');window.qaGroupStream=window.qaGroupAudio.srcObject;true")
+    for(let i=0;i<8;i++){
+      await c.click(i%2?'Início':'Perfil e ajustes',i%2===0)
+      await wait(7500)
+      assert.ok(await c.evalJs("document.querySelector('audio')===window.qaGroupAudio&&window.qaGroupAudio.srcObject===window.qaGroupStream&&window.qaGroupStream.getAudioTracks().some(t=>t.readyState==='live')"))
+    }
+    console.log('PASS: três participantes por 60 s, ajustes e navegação com o mesmo áudio.')
+  }
   for(const guest of [c,b,a]) await guest.click('Sair')
   await a.click('Amigos')
   await findFriend(a,'Validação 2','Remover')

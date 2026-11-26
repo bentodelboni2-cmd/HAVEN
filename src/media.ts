@@ -1,7 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ConnectionState, LocalVideoTrack, Room, RoomEvent, Track } from 'livekit-client'
 import type { Participant, TrackPublication } from 'livekit-client'
 import type { Api } from './api'
+import { soundEngine } from './sounds'
+import type { SoundCategory } from './sounds'
 
 export const profiles = {
   '720p30': { width:1280,height:720,frameRate:30,mbps:4 },
@@ -11,12 +13,14 @@ export const profiles = {
 export type Quality = keyof typeof profiles
 export type Prefs = {
   quality: Quality; bitrate: number; mic: string; camera: string; output: string
+  soundVolume: number; sounds: Partial<Record<SoundCategory, boolean>>
   ptt: boolean; pttKey: string; music: boolean; theme: 'ardosia'|'carvao'
 }
-export const initialPrefs: Prefs = {quality:'1080p60',bitrate:0,mic:'',camera:'',output:'',ptt:false,pttKey:'Space',music:false,theme:'ardosia'}
+export const initialPrefs: Prefs = {quality:'1080p60',bitrate:0,mic:'',camera:'',output:'',soundVolume:.38,sounds:{},ptt:false,pttKey:'Space',music:false,theme:'ardosia'}
 export type ActiveCall = { id: string; title: string; code: string | null; room: Room }
 export type Share = { person: Participant; publication: TrackPublication }
 type Credentials = { url: string; token: string; code: string | null }
+const updateEvents = [RoomEvent.ConnectionStateChanged,RoomEvent.ParticipantConnected,RoomEvent.ParticipantDisconnected,RoomEvent.TrackPublished,RoomEvent.TrackUnpublished,RoomEvent.TrackSubscribed,RoomEvent.TrackUnsubscribed,RoomEvent.TrackMuted,RoomEvent.TrackUnmuted,RoomEvent.LocalTrackPublished,RoomEvent.LocalTrackUnpublished]
 
 export function useCall(api: Api, prefs: Prefs) {
   const [active,setActive] = useState<ActiveCall>()
@@ -25,6 +29,7 @@ export function useCall(api: Api, prefs: Prefs) {
   const [deaf,setDeaf] = useState(false)
   const [requestedShare,setRequestedShare] = useState<Quality>()
   const [isolatingAudio,setIsolatingAudio] = useState(false)
+  const [capturingAudio,setCapturingAudio] = useState(false)
   const [mutedParticipants,setMutedParticipants] = useState<Record<string,boolean>>({})
   const [sessionVolumes,setVolumes] = useState<Record<string,number>>({})
   const activeRef = useRef<ActiveCall | undefined>(undefined)
@@ -32,11 +37,11 @@ export function useCall(api: Api, prefs: Prefs) {
   const refresh = useCallback(() => setVersion(v=>v+1),[])
   const room = active?.room
   const mine = room?.localParticipant
-  const participants: Participant[] = room ? [room.localParticipant,...room.remoteParticipants.values()] : []
-  const shares = participants.flatMap(person => {
+  const participants = useMemo<Participant[]>(()=>room?[room.localParticipant,...room.remoteParticipants.values()]:[],[room,version])
+  const shares = useMemo(()=>participants.flatMap(person => {
     const publication = person.getTrackPublication(Track.Source.ScreenShare)
     return publication?.track && !publication.isMuted ? [{person,publication}] : []
-  })
+  }),[participants])
   const source = mine?.getTrackPublication(Track.Source.ScreenShare)
   const sharing = Boolean(source?.track)
   const hasShareAudio = Boolean(mine?.getTrackPublication(Track.Source.ScreenShareAudio)?.track)
@@ -69,8 +74,6 @@ export function useCall(api: Api, prefs: Prefs) {
         videoCaptureDefaults:{deviceId:prefs.camera || undefined},
         audioOutput:prefs.output ? {deviceId:prefs.output} : undefined,
       })
-      const updateEvents = [RoomEvent.ConnectionStateChanged,RoomEvent.ParticipantConnected,RoomEvent.ParticipantDisconnected,RoomEvent.TrackPublished,RoomEvent.TrackUnpublished,RoomEvent.TrackSubscribed,RoomEvent.TrackUnsubscribed,RoomEvent.TrackMuted,RoomEvent.TrackUnmuted,RoomEvent.LocalTrackPublished,RoomEvent.LocalTrackUnpublished,RoomEvent.ActiveSpeakersChanged]
-      for (const event of updateEvents) next.on(event,refresh)
       await next.connect(result.url,result.token,{maxRetries:2}).catch(cause => {
         throw new Error('Não foi possível entrar na chamada. Confira a conexão com o servidor de mídia e tente novamente.', { cause })
       })
@@ -97,6 +100,11 @@ export function useCall(api: Api, prefs: Prefs) {
   const reconnect=useRef(join)
   reconnect.current=join
   useEffect(() => () => { void activeRef.current?.room.disconnect() },[])
+  useEffect(()=>{
+    if(!room)return
+    for(const event of updateEvents)room.on(event,refresh)
+    return ()=>{for(const event of updateEvents)room.off(event,refresh)}
+  },[room,refresh])
   useEffect(() => {
     if (!room) return
     let retry=0
@@ -119,11 +127,10 @@ export function useCall(api: Api, prefs: Prefs) {
     const disconnect = () => {
       const current = activeRef.current
       if (current?.room === room && timer===undefined) timer=window.setTimeout(()=>void retryJoin(),3000)
-      refresh()
     }
     room.on(RoomEvent.Disconnected,disconnect)
     return () => { disposed=true;window.clearTimeout(timer);room.off(RoomEvent.Disconnected,disconnect) }
-  },[room,refresh,api])
+  },[room,api])
 
   useEffect(() => {
     if (!mine || !prefs.ptt) return
@@ -160,12 +167,15 @@ export function useCall(api: Api, prefs: Prefs) {
   async function share(withAudio: boolean, isolateLocally = false) {
     if (!mine) return
     const profile = profiles[prefs.quality]
+    if(withAudio) soundEngine.stop()
+    setCapturingAudio(withAudio)
     setIsolatingAudio(withAudio && isolateLocally)
     const tracks = await mine.createScreenTracks({
       audio:withAudio ? {restrictOwnAudio:true,echoCancellation:false,noiseSuppression:false,autoGainControl:false,channelCount:2} : false,
       resolution:{width:profile.width,height:profile.height,frameRate:profile.frameRate},
       contentHint:'motion',
     }).catch(error=>{
+      setCapturingAudio(false)
       setIsolatingAudio(false)
       throw error
     })
@@ -185,9 +195,11 @@ export function useCall(api: Api, prefs: Prefs) {
     } catch (error) {
       await Promise.allSettled(tracks.map(track=>mine.unpublishTrack(track,true)))
       tracks.forEach(track=>track.stop())
+      setCapturingAudio(false)
       setIsolatingAudio(false)
       throw error
     }
+    setCapturingAudio(false)
     refresh()
   }
 
@@ -223,7 +235,11 @@ export function useCall(api: Api, prefs: Prefs) {
   }
   function updateVolume(id: string, value: number) { setVolumes(v=>({...v,[id]:value})) }
   function toggleParticipantMute(id: string) { setMutedParticipants(previous=>({...previous,[id]:!previous[id]})) }
-  return {active,busy,version,deaf,setDeaf,sessionVolumes,updateVolume,mutedParticipants,toggleParticipantMute,isolatingAudio,join,leave,mine,participants,shares,sharing,requestedShare,hasShareAudio,share,changeQuality}
+  async function changeDevice(kind: MediaDeviceKind, device: string) {
+    if(room?.state!==ConnectionState.Connected)return
+    if(!await room.switchActiveDevice(kind,device||'default',Boolean(device)))throw new Error('Não foi possível usar esse dispositivo.')
+  }
+  return {active,busy,version,deaf,setDeaf,sessionVolumes,updateVolume,mutedParticipants,toggleParticipantMute,isolatingAudio,capturingAudio,join,leave,mine,participants,shares,sharing,requestedShare,hasShareAudio,share,changeQuality,changeDevice}
 }
 export type Media = ReturnType<typeof useCall>
 

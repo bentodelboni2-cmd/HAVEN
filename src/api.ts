@@ -4,14 +4,15 @@ export type Role = 'owner' | 'admin' | 'member'
 export type Space = { id: string; name: string; description: string; theme: string; role: Role }
 export type Channel = { id: string; name: string; kind: 'voice' | 'text'; space: string }
 export type Event = { id: string; space: string; title: string; starts: number }
-export type Call = { id: string; name: string; room: string | null; state: 'joined' | 'invited'; pending?: number }
+export type Call = { id: string; created: number; name: string; room: string | null; state: 'joined' | 'invited'; pending?: number }
 export type Thread = { kind: 'room' | 'dm' | 'call' | 'wall'; target: string }
 export type Message = { id: number; name: string; sender: string; body: string; sent: number; color: string; kind: string | null }
 export type Snapshot = {
   admin?: boolean
   me: Person; spaces: Space[]; rooms: Channel[]; members: (Person & { space: string; role: Role })[]
   friends: Friend[]; events: Event[]; calls: Call[]; occupancy: {room: string; total: number; screens: string[]}[]
-  unread: Record<string, number>; latest: (Thread & Pick<Message,'id'|'name'|'body'|'sent'>)[]
+  unread: Record<string, number>; latest: (Thread & Pick<Message,'id'|'name'|'body'|'sent'> & {sender?:string})[]
+  latestCallMessage?: {id:number;sender:string;target:string}|null
 }
 export type CaptureSource = { id: string; name: string; thumbnail: string }
 declare global {
@@ -58,7 +59,7 @@ export function client(base: string, token = '') {
   return {
     json: async <T,>(path: string, data?: unknown, signal?: AbortSignal): Promise<T> => (await request(path,data,signal)).json(),
     blob: async (path: string, signal?: AbortSignal) => (await request(path,undefined,signal)).blob(),
-    changes: async (update: () => void, signal: AbortSignal) => {
+    changes: async (update: () => void, signal: AbortSignal, activity: () => void) => {
       const stream = (await request('/changes',undefined,signal)).body?.pipeThrough(new TextDecoderStream())
       if (!stream) return
       const reader = stream.getReader()
@@ -67,6 +68,7 @@ export function client(base: string, token = '') {
         while (!signal.aborted) {
           const {value,done} = await reader.read()
           if (done) break
+          activity()
           pending += value
           let at: number
           while ((at = pending.indexOf('\n\n')) !== -1) {

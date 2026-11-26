@@ -11,3 +11,5 @@ O cliente 0.4.1 também funciona com o domínio de desenvolvimento do ngrok. O t
 O cliente 0.4.2 já preenche o endereço HTTPS do ngrok e oferece Lembrar de mim. A sessão usa o token atual do servidor, com validade de sete dias.
 
 A versão 0.4.3 precisa do backend atualizado para emitir sessões sem vencimento. O tablet ativo ainda serve a versão anterior. A atualização preserva as contas e está em [deploy/SESSOES.md](deploy/SESSOES.md).
+
+A 0.5.0 prepara o pacote assinado para o mesmo app. O feed no servidor ativo respondeu 404. Para ativar atualizações integradas e avisos de chat de chamada em outras páginas, use [deploy/ATUALIZAR-0.5.0.md](deploy/ATUALIZAR-0.5.0.md). A homologação em redes externas continua descrita em TASKS.md.

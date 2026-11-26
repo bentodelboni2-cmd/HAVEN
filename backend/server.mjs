@@ -222,7 +222,7 @@ export function makeServer(db, config) {
     const liveRooms = all("SELECT DISTINCT c.id,c.room FROM calls c JOIN rooms r ON c.room=r.id JOIN members m ON m.space=r.space JOIN call_members cm ON cm.call=c.id JOIN users u ON u.id=cm.user WHERE m.user=? AND c.expires>? AND cm.state='joined' AND u.seen>? ORDER BY c.created DESC LIMIT 24",u,clock(),clock()-45000)
     const counts = [...rooms.filter(r=>r.kind==='text').map(r=>['room',r.id]), ...friends.filter(f=>f.accepted).map(f=>['dm',f.id])]
     const unread = {}
-    const findRecent = db.prepare('SELECT m.id,m.body,m.sent,u.name FROM messages m JOIN users u ON u.id=m.sender WHERE m.scope=? ORDER BY m.id DESC LIMIT 1')
+    const findRecent = db.prepare('SELECT m.id,m.body,m.sent,m.sender,u.name FROM messages m JOIN users u ON u.id=m.sender WHERE m.scope=? ORDER BY m.id DESC LIMIT 1')
     const latest = []
     for (const [kind,target] of counts) {
       const channel = scope(kind,target,u)
@@ -232,7 +232,10 @@ export function makeServer(db, config) {
       if (recent) latest.push({ ...recent, kind, target })
     }
     const occupancy = (await Promise.all(liveRooms.map(async c => ({ room:c.room,...await liveVoice(c.id) })))).filter(r=>r.total)
-    return { me:{ id:u,...me },admin:Boolean(get('SELECT 1 FROM server_admins WHERE user=?',u)),spaces,rooms,members,friends,calls,events,occupancy,unread,latest:latest.sort((a,b)=>b.id-a.id).slice(0,5) }
+    const activeCall=calls.find(call=>call.state==='joined' && (!call.room || rooms.some(room=>room.id===call.room)))
+    const latestCallMessage=activeCall ? get('SELECT id,sender FROM messages WHERE scope=? ORDER BY id DESC LIMIT 1','call:'+activeCall.id) : undefined
+    return { me:{ id:u,...me },admin:Boolean(get('SELECT 1 FROM server_admins WHERE user=?',u)),spaces,rooms,members,friends,calls,events,occupancy,unread,
+      latest:latest.sort((a,b)=>b.id-a.id).slice(0,5),latestCallMessage:latestCallMessage?{...latestCallMessage,target:activeCall.id}:null }
   })
 
   POST('/profile', ({body:b},u) => {

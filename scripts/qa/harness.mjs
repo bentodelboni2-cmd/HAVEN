@@ -12,7 +12,7 @@ const repo = resolve(import.meta.dirname,'../..')
 const scratch = mkdtempSync(join(tmpdir(),'haven-qa-'))
 const electron = createRequire(import.meta.url)('electron')
 const {version}=JSON.parse(readFileSync(join(repo,'package.json'),'utf8'))
-const binary = process.argv.includes('--package') ? join(repo,'release',version,'win-unpacked/HAVEN.exe') : electron
+const binary = process.argv.includes('--package') ? join(repo,'release',process.env.HAVEN_QA_VERSION||version,'win-unpacked/HAVEN.exe') : electron
 const db = openDb(join(scratch,'smoke.sqlite'))
 const app = makeServer(db,{media:'ws://127.0.0.1:17980',key:'devkey',secret:'secret',backupDir:join(scratch,'backups'),releases:join(scratch,'updates')})
 const origin = await app.listen({host:'127.0.0.1',port:0})
@@ -32,7 +32,7 @@ const go = async (find, label, timeout=14000) => {
   throw Error(label+(e?' / '+e.message:''))
 }
 async function connection(n) {
-  const port=19241+n
+  const port=(Number(process.env.HAVEN_QA_PORT)||19241)+n
   const profile=join(scratch,'account'+n)
   const args=[...(binary===electron?[repo]:[]),'--remote-debugging-port='+port,'--remote-debugging-address=127.0.0.1','--haven-preview='+profile,'--user-data-dir='+profile]
   const child=spawn(binary,args,{cwd:repo,windowsHide:true,stdio:['ignore','ignore','pipe']})

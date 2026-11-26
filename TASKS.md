@@ -57,3 +57,11 @@ O executável passou no fluxo de cadastro por convite, saída e novo login com u
 
 - Cadastro e login com Lembrar de mim emitem sessão sem vencimento. As sessões anteriores conservam seu prazo. A sessão continua revogável por logout online e suspensão.
 - Validados no backend o login, cadastro, persistência após reinício, expiração das sessões temporárias e revogação.
+
+## Experiência 0.5.0
+
+- Validados no Windows empacotado: 17 categorias com prévia, toque recebido e efetuado, recusa, cancelamento, expiração, persistência de sessão, recuperação do backend e verificação do instalador. O áudio do HAVEN ficou pausado ao compartilhar áudio do sistema.
+- Em loopback, três participantes mantiveram a mesma trilha de áudio por 60 s ao navegar. A captura preservou os elementos de áudio e vídeo ao abrir Ajustes. Dois clientes voltaram à mesma chamada 6,6 s após reiniciar o LiveKit.
+- A janela de teste foi recebida a 1824×1080 e 27 FPS. Foram testados compartilhamento com e sem áudio, mudança de qualidade e modo flutuante. A visibilidade do receptor e a indisponibilidade da tela cheia nativa foram simuladas no QA ocluído. O isolamento nativo apresentou resultados variáveis com o tom de diagnóstico. A supressão dos efeitos do HAVEN foi confirmada pela instrumentação do Web Audio.
+- Em 30 s ociosos com SSE ativo, as consultas de estado caíram de 4 para 2. Na repetição pareada, CPU dos processos Electron foi 395 → 360 ms, RAM residente 351 → 345 MiB e memória dedicada de GPU 64 → 59 MiB. Os resultados variaram entre rodadas e não demonstram ganho consistente nesses recursos.
+- Pendente em dispositivos reais: 1080p60 sustentados via tablet entre redes, impacto em jogos, dispositivos físicos de áudio/vídeo e validação auditiva do timbre.
