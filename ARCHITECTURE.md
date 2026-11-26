@@ -21,3 +21,5 @@ O script `node scripts/tablet-livekit-patch.mjs protocol RAIZ_DO_MÓDULO` ou `no
 - O backend concede administração de servidor por papel separado dos espaços. O primeiro papel é concedido pelo CLI local. O painel acessa estado, inventário de chamadas, auditoria resumida e backups por rotas autenticadas.
 - O supervisor usa o LiveKit existente, verifica ambos os processos, limita logs e gera cópias SQLite consistentes. O procedimento de atualização preserva o ambiente e testa a migração em uma cópia.
 - O backend pode servir uma pasta de versões. O desktop valida assinatura Ed25519, versão e SHA-256 antes de abrir o instalador. O endereço padrão do cliente pode ser alterado em build via VITE_HAVEN_SERVER e em execução nos ajustes.
+
+- Acesso direto no Samsung é um perfil opt-in. Caddy termina HTTPS/WSS em portas não privilegiadas, o backend e a API do LiveKit ficam em loopback, e o roteador entrega ICE TCP/UDP ao LiveKit. .env.public sobrepõe a rede, preservando SQLite, .env e binário.

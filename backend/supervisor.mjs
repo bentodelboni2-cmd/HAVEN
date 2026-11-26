@@ -13,6 +13,10 @@ const operations=join(dirname(dbFile),'ops')
 const livekitDir=resolve(env.HAVEN_LIVEKIT_DIR||join(homedir(),'livekit'))
 const media=new URL(env.LIVEKIT_API_URL||env.LIVEKIT_URL.replace(/^ws/,'http'))
 const bind=env.HAVEN_LIVEKIT_BIND||media.hostname
+const lan=env.HAVEN_DEV_LAN==='1'
+const nodeIp=env.HAVEN_LIVEKIT_NODE_IP||(lan?bind:'')
+const livekitKeys=!lan&&env.LIVEKIT_API_KEY&&env.LIVEKIT_API_SECRET
+  ? {LIVEKIT_KEYS:env.LIVEKIT_API_KEY+': '+env.LIVEKIT_API_SECRET} : {}
 const maxLog=2*1024*1024
 const day=86400000
 mkdirSync(operations,{recursive:true,mode:0o700})
@@ -39,7 +43,8 @@ const services=[
   {name:'contas',binary:process.execPath,args:['backend/serve.mjs'],cwd:process.cwd(),
     check:'http://'+(env.HAVEN_BIND||'127.0.0.1')+':'+(env.HAVEN_PORT||8787)+'/health'},
   {name:'livekit',binary:env.HAVEN_LIVEKIT_BINARY||join(livekitDir,'livekit-haven'),cwd:livekitDir,check:media.href,
-    args:[...(env.HAVEN_DEV_LAN==='1'?['--dev']:[]),'--config',env.HAVEN_LIVEKIT_CONFIG||'haven.yaml','--bind',bind,'--node-ip',env.HAVEN_LIVEKIT_NODE_IP||bind]},
+    env:livekitKeys,args:[...(lan?['--dev']:[]),'--config',env.HAVEN_LIVEKIT_CONFIG||'haven.yaml','--bind',bind,
+      ...(nodeIp?['--node-ip',nodeIp]:[])]},
 ]
 let stopping=false
 let runningProbe=false
@@ -80,7 +85,7 @@ function launch(service) {
   record.errors=0
   const child=spawn(service.binary,service.args,{
     cwd:service.cwd,stdio:['ignore','pipe','pipe'],
-    env:{...env,GODEBUG:env.GODEBUG||'asyncpreemptoff=1',GOMAXPROCS:env.GOMAXPROCS||'2'},
+    env:{...env,...service.env,GODEBUG:env.GODEBUG||'asyncpreemptoff=1',GOMAXPROCS:env.GOMAXPROCS||'2'},
   })
   record.child=child
   for(const output of [child.stdout,child.stderr])output?.on('data',data=>log(service.name,data))

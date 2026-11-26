@@ -39,3 +39,7 @@ O executável passou no fluxo de cadastro por convite, saída e novo login com u
 - Validado no Windows empacotado: cadastro, sessão persistente, login, saída offline, painel exclusivo de administrador, lote de convites, backup, reconexão após queda do backend e bloqueio de instalador alterado.
 - Validados em ambiente isolado: reinício do LiveKit sem reiniciar contas, backup inicial e migração v1 → v2 com configuração e convite preservados. Build e publicação assinada passaram no destino local.
 - Pendente no tablet: instalar o pacote, conceder o primeiro papel, configurar o destino de atualização e validar boot, retenção e chamadas entre duas redes pelo Tailscale.
+
+## Acesso direto no Samsung
+
+- Testados localmente o perfil público, cadastro e login por HTTPS, token de mídia aceito por WSS e bloqueio da API interna do LiveKit. Pendente em produção: DNS, acesso ao roteador, certificados públicos e chamada entre redes sem Tailscale.
