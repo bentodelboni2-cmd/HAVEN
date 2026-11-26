@@ -130,7 +130,6 @@ hr{border:0;border-top:1px solid var(--line);width:30px;margin:2px auto}
 .participant-audio button{min-width:28px;padding:4px}
 .participant-audio button[aria-pressed=true]{color:#ffc0ca}
 .stage-meta{position:absolute;inset:auto 0 0;padding:10px 12px;display:flex;justify-content:space-between;gap:8px;align-items:center;background:#101822e8}
-.stage-meta small{display:block}
 .stage-idle{display:grid;gap:8px;text-align:center;padding:12px;color:var(--dim)}
 .stage-idle svg{margin:0 auto;color:#8cacc5}
 .stage-idle strong{color:#e6edf4}
@@ -148,8 +147,6 @@ hr{border:0;border-top:1px solid var(--line);width:30px;margin:2px auto}
 .call-chat .conversation{flex:1;min-height:0}
 .call-chat .messages{flex:1;max-height:min(54vh,540px)}
 .reactions{display:flex;gap:3px;margin-top:6px}
-.call-footnote{display:flex;gap:10px;justify-content:space-between;align-items:center;flex-wrap:wrap;color:var(--dim);font-size:12px}
-.call-footnote label{display:flex;align-items:center;gap:6px}
 .call-controls{grid-row:3;grid-column:2;display:flex;align-items:center;gap:14px;padding:10px 17px;border-top:1px solid var(--line);background:var(--bar)}
 .call-return{max-width:25vw;white-space:nowrap}
 .call-return span{overflow:hidden;text-overflow:ellipsis}
@@ -382,7 +379,22 @@ dialog p{color:var(--dim)}
 .stage.presenting { border-color: #68e6de; box-shadow: 0 0 16px #56e7d531 }
 .participant-preview { background: linear-gradient(145deg, #16303c, #2b2443) }
 .participant.speaking { box-shadow: 0 0 13px #53e4d21f }
-.call-chat header svg { color: var(--green); margin-right: 5px }
+.call-details, .call-reactions { position: relative }
+.call-details summary, .call-reactions summary {
+  display: inline-flex; align-items: center; gap: 6px; cursor: pointer; list-style: none;
+}
+.call-details[open], .call-reactions[open] { z-index: 5 }
+.call-details-content, .call-reactions .reactions {
+  position: absolute; top: calc(100% + 7px); right: 0; margin: 0;
+  padding: 12px; border: 1px solid var(--line); border-radius: 10px;
+  background: var(--panel); box-shadow: 0 8px 24px #05091066;
+}
+.call-details-content { display: grid; gap: 8px; width: min(290px, 75vw); font-size: 13px }
+.call-details-content label { display: flex; gap: 8px; align-items: center; justify-content: space-between }
+.call-reactions summary { color: var(--dim); padding: 5px; border-radius: 6px }
+.call-reactions summary:hover { color: var(--green); background: var(--inner) }
+.call-reactions .reactions { padding: 5px }
+.stage-meta { padding-block: 4px; background: linear-gradient(0deg,#101822ed,#10182265) }
 .call-controls .control-buttons>.icon:has(.control-label) {
   min-width: 69px; flex-direction: column; gap: 4px;
   padding: 6px 10px; background: linear-gradient(145deg, #233950, #182538);
@@ -402,4 +414,88 @@ dialog p{color:var(--dim)}
 @media(max-width: 680px) {
   .call-heading { flex-wrap: wrap }
   .call-heading .inline { justify-content: flex-start }
+}
+
+/* Adjustable panes */
+.resize-handles, dialog.resizable-dialog:not(.layout-editing) .resize-handles { display: none; visibility: hidden }
+.layout-editing .resize-handles { display: contents; visibility: visible }
+.layout-toggle { padding: 6px 8px; min-height: 33px; white-space: nowrap; color: var(--dim) }
+.layout-toggle.selected { border-color: var(--green); color: var(--green) }
+button.resize-handle {
+  position: absolute; z-index: 2; width: 26px; height: 26px; min-width: 0; min-height: 0;
+  padding: 0; border: 0; border-radius: 50%; box-shadow: none; background: transparent;
+  touch-action: none; user-select: none; -webkit-app-region: no-drag;
+}
+button.resize-handle::before {
+  content: ''; width: 9px; height: 9px; border-radius: 50%;
+  border: 1px solid #9baab9; background: #222a35; opacity: .75;
+}
+button.resize-handle:is(:hover,:focus-visible,[data-dragging]) { background: transparent }
+button.resize-handle:is(:hover,:focus-visible,[data-dragging])::before { border-color: #83d5c4; background: #83d5c4; opacity: 1 }
+button.resize-handle:focus-visible { outline: none }
+button.resize-handle:focus-visible::before { outline: 2px solid #83d5c4; outline-offset: 2px }
+.resize-handle.nw { top: -6px; left: -6px; cursor: nwse-resize }
+.resize-handle.ne { top: -6px; right: -6px; cursor: nesw-resize }
+.resize-handle.sw { bottom: -6px; left: -6px; cursor: nesw-resize }
+.resize-handle.se { bottom: -6px; right: -6px; cursor: nwse-resize }
+
+.resizable-panel, .resizable-banner, .resizable-entry, .rail, .participant-pane, .call-chat { position: relative }
+.resizable-panel, .resizable-dialog[open] { display: flex; flex-direction: column; overflow: hidden }
+.resizable-panel, .resizable-banner {
+  width: var(--pane-width, 100%); min-width: min(200px, 100%); max-width: 100%; height: var(--pane-height, auto);
+}
+.resizable-panel[style*="--pane-height"], .resizable-dialog[style*="--pane-height"] { min-height: 112px }
+.resizable-panel > header, .resizable-dialog > header { flex: none }
+.pane-scroll { min-height: 0; min-width: 0; overflow: auto; scrollbar-color: #425062 transparent; padding-inline: 2px }
+.resizable-dialog {
+  width: var(--pane-width, 610px); min-width: min(260px, calc(100vw - 35px)); max-width: calc(100vw - 35px);
+  height: var(--pane-height, fit-content); padding-inline: 19px;
+}
+.resizable-banner[style*="--pane-height"] { min-height: 172px }
+.resizable-entry[style*="--pane-width"] {
+  width: clamp(min(630px, calc(100% - 32px)), var(--pane-width), calc(100% - 32px));
+}
+.resizable-entry[style*="--pane-height"] { height: var(--pane-height); min-height: 390px }
+.resizable-entry[style*="--pane-height"] .entry-sheet { max-height: 100%; min-height: 0; overflow: auto }
+
+.shell:not(.hud) { grid-template-columns: clamp(50px, var(--rail-width, 66px), 142px) minmax(0,1fr) }
+.rail button.resize-handle { cursor: col-resize; right: -5px }
+.call-layout { grid-template-columns: minmax(0,1fr) clamp(244px, var(--chat-width,25%), 50%); align-items: start }
+.call-layout.no-chat { grid-template-columns: minmax(0,1fr) }
+.call-media {
+  grid-template-columns: minmax(0,1fr) clamp(116px, var(--participants-width,23%), 52%);
+  grid-template-rows: auto auto; align-items: start;
+}
+.stage { height: var(--pane-height, clamp(260px, 48dvh, 620px)); max-height: 90dvh }
+.stage:is(:fullscreen,.expanded) { height: auto; max-height: none }
+.stage:is(:fullscreen,.expanded) > .resize-handles { display: none }
+.stage-meta { padding-inline-end: 20px }
+.participant-pane {
+  height: var(--pane-height, auto); min-width: 0; max-height: 90dvh; display: flex; flex-direction: column;
+  border: 1px solid transparent; border-radius: var(--radius);
+}
+.layout-editing .participant-pane { border-color: var(--line) }
+.participant-pane[style*="--pane-height"] { min-height: 120px }
+.participant-list {
+  max-height: 70dvh; min-height: 0; flex: 1; overflow-x: hidden; padding: 9px;
+  scrollbar-width: thin; scrollbar-color: var(--line) transparent;
+}
+.participant {
+  position: relative; display: flex; flex-direction: column;
+  width: var(--pane-width, 100%); min-width: min(100px, 100%); max-width: 100%; height: var(--pane-height, auto); overflow: hidden;
+}
+.participant[style*="--pane-height"] { min-height: 110px }
+.participant-preview { flex: 1 0 32px }
+.participant:not([style*="--pane-height"]) .participant-preview { flex: none }
+.participant .resize-handle { z-index: 1 }
+.call-chat { height: var(--pane-height, 100%); min-height: 245px; max-height: 90dvh }
+.call-chat .messages { max-height: none; min-height: 36px }
+@media (max-width: 950px) {
+  .call-layout { grid-template-columns: minmax(0,1fr) clamp(200px, var(--chat-width,25%), 47%) }
+}
+@media (max-width: 680px) {
+  .shell:not(.hud) { grid-template-columns: clamp(42px, var(--rail-width,48px), 86px) minmax(0,1fr) }
+  .call-layout, .call-media { --resize-columns: stacked; grid-template-columns: minmax(0,1fr) }
+  .call-layout :is(.stage,.participant-pane,.call-chat) > .resize-handles > .resize-handle { cursor: row-resize }
+  .call-chat { height: var(--pane-height, 305px) }
 }

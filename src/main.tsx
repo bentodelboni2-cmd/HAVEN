@@ -14,7 +14,11 @@ import { createRoot } from 'react-dom/client'
 import { Login } from './auth'
 import { ringUntil, soundEnabled, useFeedback } from './feedback'
 import { soundEngine } from './sounds'
+import { LayoutToggle, ResizeHandles } from './resize'
+import type { ColumnResize } from './resize'
 import './style.css'
+
+const sidebarColumn: ColumnResize = { grid:'.shell', property:'--rail-width', storage:'rail.width', pixels:true }
 
 const nav = [
   { label: 'Início', icon: House }, { label: 'Espaços', icon: LayoutGrid },
@@ -45,6 +49,7 @@ function App() {
     catch{return initialPrefs}
   })
   const [hud,setHud]=useState(false)
+  const [editingLayout,setEditingLayout]=useState(false)
   const [library,setLibrary]=useState('')
   const [shareRequest,setShareRequest]=useState(0)
   const toastTimer=useRef<number | undefined>(undefined)
@@ -288,7 +293,7 @@ function App() {
       case 'Biblioteca': {
         const target=data.spaces.find(s=>s.id===library)||data.spaces[0]
         return <><div className="heading"><SectionTitle>Biblioteca</SectionTitle>{target&&<select aria-label="Espaço" value={target.id} onChange={e=>setLibrary(e.target.value)}>{data.spaces.map(s=><option value={s.id} key={s.id}>{s.name}</option>)}</select>}</div>
-          <Panel title={target?'Mídias de '+target.name:'Mídias compartilhadas'}>{target?<Conversation key={target.id} api={api} thread={{kind:'wall',target:target.id}} signal={conversationVersion} notify={notify} me={data.me.id} wall/>:<Empty>Entre em um espaço para acessar seu mural.</Empty>}</Panel></>
+          <Panel layoutId="library" title={target?'Mídias de '+target.name:'Mídias compartilhadas'}>{target?<Conversation key={target.id} api={api} thread={{kind:'wall',target:target.id}} signal={conversationVersion} notify={notify} me={data.me.id} wall/>:<Empty>Entre em um espaço para acessar seu mural.</Empty>}</Panel></>
       }
       case 'Ajustes': return <SettingsPage state={data} prefs={prefs} save={save} api={api} base={base} notify={notify} signOut={signOut} refresh={refresh}
         changeServer={changeServer} openAdmin={()=>navigate('Administração')} update={update} checkUpdate={checkUpdate} changeDevice={media.changeDevice} suppressSounds={media.capturingAudio||media.hasShareAudio}/>
@@ -296,17 +301,18 @@ function App() {
     }
   }
   const callVisible=!hud && page==='Chamadas' && !thread
-  return <div className={'shell '+prefs.theme+(hud?' hud':'')}>
+  return <div className={'shell '+prefs.theme+(hud?' hud':'')+(editingLayout&&!hud?' layout-editing':'')}>
     <header className="topbar">
       <button className="wordmark" onClick={()=>navigate('Início')} aria-label="HAVEN, início"><Brand/></button>
       {!hud&&<nav aria-label="Navegação principal">{nav.map(({label,icon:Icon})=><button key={label} className={page===label?'current':''} aria-current={page===label?'page':undefined} onClick={()=>navigate(label)}><Icon size={17} aria-hidden="true"/>{label}</button>)}</nav>}
-      <div className="top-right">{!hud&&<button className="icon notifications" aria-label="Notificações" onClick={()=>setShowNotifications(true)}><Bell size={19}/>{invites.length+pendingFriends>0&&<i>{invites.length+pendingFriends}</i>}</button>}<WindowButtons/></div>
+      <div className="top-right">{!hud&&<><LayoutToggle editing={editingLayout} toggle={()=>setEditingLayout(v=>!v)}/><button className="icon notifications" aria-label="Notificações" onClick={()=>setShowNotifications(true)}><Bell size={19}/>{invites.length+pendingFriends>0&&<i>{invites.length+pendingFriends}</i>}</button></>}<WindowButtons/></div>
     </header>
     {!hud&&<aside className="rail" aria-label="Espaços e ajustes">
       <button className={'rail-button '+(page==='Espaços'&&!spaceId?'selected':'')} title="Todos os espaços" aria-label="Todos os espaços" onClick={()=>navigate('Espaços')}><LayoutGrid size={20}/></button>{data.spaces.length>0&&<hr/>}
       <div className="rail-spaces">{data.spaces.map(s=><button key={s.id} className={'rail-button space-icon '+(spaceId===s.id&&page==='Espaços'?'selected':'')} title={s.name} aria-label={s.name} onClick={()=>openSpace(s.id)}>{s.name.slice(0,2).toUpperCase()}</button>)}</div>
       <button className="rail-button" title="Criar espaço" aria-label="Criar espaço" onClick={createSpace}><CirclePlus size={21}/></button>
       <div className="rail-end"><button className="profile profile-settings" title="Perfil e ajustes (Ctrl+,)" aria-label="Perfil e ajustes" aria-keyshortcuts="Control+," onClick={()=>navigate('Ajustes')}><Avatar p={data.me}/><Settings size={13}/></button></div>
+      <ResizeHandles name="barra lateral" id="rail" column={sidebarColumn} horizontalOnly/>
     </aside>}
     <main className="workspace" hidden={hud} ref={workspace}>
       {connection&&<p className="notice" role="status">{connection} <button className="quiet" onClick={refresh}>Reconectar</button></p>}

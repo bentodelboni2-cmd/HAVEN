@@ -3,6 +3,7 @@ import type { FormEvent, ReactNode } from 'react'
 import { CalendarDays, ImagePlus, MessageSquare, Send, X } from 'lucide-react'
 import type { Api, Event, Message, Person, Snapshot, Thread } from './api'
 import { dateTime, describe, online, threadPath, time } from './api'
+import { LayoutToggle, ResizeHandles } from './resize'
 
 export function Avatar({p,presence=false}:{p:Pick<Person,'name'|'color'> & {seen?:number}; presence?:boolean}) {
   return <span className={'avatar '+p.color} aria-hidden="true">{p.name.trim().split(/\s+/).slice(0,2).map(n=>n[0]).join('').toUpperCase()}
@@ -12,14 +13,18 @@ export function Avatar({p,presence=false}:{p:Pick<Person,'name'|'color'> & {seen
 
 export function Dialog({title,children,close}:{title:string;children:ReactNode;close:()=>void}) {
   const dialog=useRef<HTMLDialogElement>(null)
+  const [editing,setEditing]=useState(false)
   useEffect(()=>{dialog.current?.showModal()},[])
-  return <dialog ref={dialog} onCancel={close} aria-label={title}>
-    <header><h2>{title}</h2><button className="icon" title="Fechar" aria-label="Fechar" onClick={close}><X size={19}/></button></header>
-    {children}
+  return <dialog className={'resizable-dialog'+(editing?' layout-editing':'')} ref={dialog} onCancel={close} aria-label={title}>
+    <header><h2>{title}</h2><div className="inline"><LayoutToggle editing={editing} toggle={()=>setEditing(v=>!v)}/><button className="icon" title="Fechar" aria-label="Fechar" onClick={close}><X size={19}/></button></div></header>
+    <div className="pane-scroll">{children}</div>
+    <ResizeHandles name={title} id="dialog"/>
   </dialog>
 }
-export function Panel({title,children,action}:{title:string;children:ReactNode;action?:ReactNode}) {
-  return <section className="panel"><header><h2>{title}</h2>{action}</header>{children}</section>
+export function Panel({title,children,action,layoutId=title}:{title:string;children:ReactNode;action?:ReactNode;layoutId?:string}) {
+  return <section className="panel resizable-panel"><header><h2>{title}</h2>{action}</header>
+    <div className="pane-scroll">{children}</div><ResizeHandles name={title} id={'panel.'+layoutId}/>
+  </section>
 }
 export function Empty({children}:{children:ReactNode}) { return <p className="empty">{children}</p> }
 export function SectionTitle({children}:{children:ReactNode}) { return <h1 className="section-title">{children}</h1> }

@@ -29,3 +29,7 @@ O script `node scripts/tablet-livekit-patch.mjs protocol RAIZ_DO_MÓDULO` ou `no
 - Os sons são buffers mono sintetizados no cliente a partir das frases criadas no Astra. Um som toca por vez. As chamadas usam o prazo existente do convite e notificações são silenciadas durante a captura de áudio do sistema.
 - Com SSE ativo, a consulta periódica de estado passa de 12 para 24 s e deixa de requisitar novamente as conversas. Em caso de queda, a consulta a cada 12 s continua, e o SSE é reaberto com atraso progressivo.
 - Os elementos de mídia permanecem montados durante a navegação. A tela oculta suspende a telemetria e a conversa. O LiveKit decide quando pausar a recepção de vídeo oculto. Os indicadores de fala atualizam somente o cartão do participante.
+
+Na 0.5.1, as alças ajustam variáveis CSS sem remontar os elementos de mídia. As dimensões ficam no armazenamento local do desktop. A chamada usa proporções para as colunas e mantém rolagem interna onde o espaço é limitado.
+
+A revisão exibe as alças somente no modo Ajustar layout. O desktop mostra `displayVersion` nos ajustes e o atualizador compara a versão interna para preservar a ordenação das versões assinadas.

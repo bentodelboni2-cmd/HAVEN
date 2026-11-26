@@ -3,6 +3,7 @@ import type { FormEvent } from 'react'
 import { ArrowLeft, ArrowRight, ChevronDown, Eye, EyeOff, Mountain, SlidersHorizontal } from 'lucide-react'
 import { ApiError, baseDefault, client, connectionMessage, describe, endpoint } from './api'
 import { WindowButtons } from './shell'
+import { LayoutToggle, ResizeHandles } from './resize'
 
 type Step = 'login' | 'invite' | 'profile'
 
@@ -22,6 +23,7 @@ async function accountServer(value: string) {
 
 export function Login({ base, authorized }: { base: string; authorized: (address: string, token: string, created: boolean, remember: boolean, remembered: boolean) => Promise<void> }) {
   const [step, setStep] = useState<Step>('login')
+  const [editingLayout,setEditingLayout]=useState(false)
   const [invite, setInvite] = useState('')
   const [name, setName] = useState('')
   const [handle, setHandle] = useState('')
@@ -77,9 +79,9 @@ export function Login({ base, authorized }: { base: string; authorized: (address
   }
 
   const title = step === 'login' ? 'Entrar no HAVEN' : step === 'invite' ? 'Seu convite' : 'Crie seu perfil'
-  return <div className="entry">
-    <header className="entry-titlebar"><WindowButtons /></header>
-    <main className="entry-layout">
+  return <div className={'entry'+(editingLayout?' layout-editing':'')}>
+    <header className="entry-titlebar"><LayoutToggle editing={editingLayout} toggle={()=>setEditingLayout(v=>!v)}/><WindowButtons /></header>
+    <main className="entry-layout resizable-entry">
       <div className="entry-landscape" aria-label="HAVEN">
         <div className="entry-wordmark"><Mountain strokeWidth={1.35} aria-hidden="true" /><span>HAVEN</span></div>
       </div>
@@ -116,6 +118,7 @@ export function Login({ base, authorized }: { base: string; authorized: (address
             <button type="button" className="text-action" disabled={busy} onClick={() => {setAddress(baseDefault); setError('')}}>Usar endereço padrão do HAVEN</button></div>}
         </div>
       </section>
+      <ResizeHandles name="janela de entrada" id="entry"/>
     </main>
   </div>
 }

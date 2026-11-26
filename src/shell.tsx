@@ -7,6 +7,7 @@ import { Avatar, Panel, SectionTitle } from './components'
 import { profiles } from './media'
 import type { Prefs, Quality } from './media'
 import { defaultSoundSettings, soundCategories, soundEngine } from './sounds'
+import { displayVersion } from '../package.json'
 
 export function Brand(){return <span className="brand"><Mountain size={23} strokeWidth={1.9}/>HAVEN</span>}
 export function WindowButtons(){
@@ -116,7 +117,7 @@ export function SettingsPage({state,prefs,save,api,base,notify,signOut,refresh,c
     <Panel title="Aparência, rede e privacidade"><div className="stack">
       <label>Tema<select value={prefs.theme} onChange={e=>save({...prefs,theme:e.target.value as Prefs['theme']})}><option value="ardosia">Ardósia</option><option value="carvao">Carvão</option></select></label>
       <p>Servidor <strong>{base}</strong></p><p>A mídia ainda não tem criptografia de ponta a ponta.</p>
-      {window.haven&&<button className={update?'accent':'quiet'} disabled={updating} onClick={()=>void versionAction()}>{updating?'Verificando…':update?'Instalar HAVEN '+update.version:'Verificar atualizações'}</button>}
+      {window.haven&&<div className="inline wrap"><small>HAVEN {displayVersion}</small><button className={update?'accent':'quiet'} disabled={updating} onClick={()=>void versionAction()}>{updating?'Verificando…':update?'Instalar atualização':'Verificar atualizações'}</button></div>}
       <details><summary>Configuração avançada do servidor</summary>
         <Form key={base} label="Trocar servidor" submit={async form=>{await changeServer(String(form.get('address')))}}><label>Endereço<input type="url" name="address" required defaultValue={base}/></label>
           <small>Ao trocar o endereço, entre com sua conta nesse servidor.</small>

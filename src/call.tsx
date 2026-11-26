@@ -1,7 +1,7 @@
 import { memo, useEffect, useRef, useState } from 'react'
 import { ConnectionState, ParticipantEvent, Track } from 'livekit-client'
 import type { Participant } from 'livekit-client'
-import { AudioLines, Camera, CameraOff, ChevronsUp, Clipboard, Headphones, HeadphoneOff, Maximize, MessageSquare, Mic, MicOff, Monitor, MonitorOff, PhoneOff, Signal } from 'lucide-react'
+import { AudioLines, Camera, CameraOff, ChevronDown, ChevronsUp, Clipboard, Headphones, HeadphoneOff, Maximize, MessageSquare, Mic, MicOff, Monitor, MonitorOff, PhoneOff, Signal, SmilePlus } from 'lucide-react'
 import { describe } from './api'
 import type { Api, CaptureSource } from './api'
 import { Avatar, Conversation, Dialog, Empty, SectionTitle } from './components'
@@ -9,6 +9,12 @@ import { profiles, useStats } from './media'
 import type { Media, Prefs, Quality } from './media'
 import { soundEnabled } from './feedback'
 import { soundEngine } from './sounds'
+import { ResizeHandles } from './resize'
+import type { ColumnResize } from './resize'
+
+const participantColumn: ColumnResize = { grid:'.call-media', property:'--participants-width', storage:'call.participants.width' }
+const stageColumn: ColumnResize = { ...participantColumn, measure:'.participant-pane' }
+const chatColumn: ColumnResize = { grid:'.call-layout', property:'--chat-width', storage:'call.chat.width' }
 
 const Player=memo(function Player({track,kind,muted=false,volume=100,output='',fit=false}:{track:Track;kind:'audio'|'video';muted?:boolean;volume?:number;output?:string;fit?:boolean}) {
   const node=useRef<HTMLMediaElement|null>(null)
@@ -56,6 +62,7 @@ function ParticipantCard({person,mine,volume,setVolume,muted,toggleMute,visible}
       <button className="icon" aria-label={(muted?'Reativar áudio de ':'Silenciar ')+name} title={muted?'Reativar só para mim':'Silenciar só para mim'} aria-pressed={muted} onClick={toggleMute}>{muted?<HeadphoneOff size={15}/>:<Headphones size={15}/>}</button>
       <input type="range" min={0} max={100} value={volume} aria-label={'Volume de '+name} onChange={e=>setVolume(+e.target.value)}/>
     </div>}
+    <ResizeHandles name={mine?'seu vídeo':'vídeo de '+name} id={mine?'call.tile.self':'call.tile.'+person.identity}/>
   </article>
 }
 
@@ -106,41 +113,56 @@ export function CallView({api,media,prefs,save,notify,me,version,visible,legacyM
   const state=current.room.state
   return <div className="call-view">
     <div className="call-heading"><SectionTitle>{current.title}</SectionTitle><div className="inline">
-      <span className={'status '+(state===ConnectionState.Connected?'green':'')}><Signal size={17}/>{state===ConnectionState.Connected?'Conectado':state===ConnectionState.Disconnected?'Desconectado':'Reconectando'}</span>
+      <details className="call-details">
+        <summary className={'status '+(state===ConnectionState.Connected?'green':'')} title="Detalhes da chamada"><Signal size={17}/>{state===ConnectionState.Connected?'Conectado':state===ConnectionState.Disconnected?'Desconectado':'Reconectando'}<ChevronDown size={13}/></summary>
+        <div className="call-details-content">
+          <span>Mídia sem criptografia de ponta a ponta</span>
+          {media.hasShareAudio&&<span className="green">Áudio do sistema publicado</span>}
+          {media.isolatingAudio&&<span>Som da chamada pausado neste PC durante a captura.</span>}
+          {focused?.publication.track&&<StageStats track={visible?focused.publication.track:undefined} local={focused.person===media.mine} requested={focused.person===media.mine?media.requestedShare:undefined}/>}
+          <label>Qualidade solicitada <select value={prefs.quality} disabled={changingQuality} onChange={async e=>{
+            const quality=e.target.value as Quality
+            setChangingQuality(true)
+            try { await media.changeQuality(quality); save({...prefs,quality}) }
+            catch { notify('Não foi possível mudar a qualidade da captura.') }
+            finally { setChangingQuality(false) }
+          }}>{Object.keys(profiles).map(p=><option key={p}>{p}</option>)}</select></label>
+        </div>
+      </details>
       {current.code&&<button className="quiet" onClick={()=>void navigator.clipboard.writeText(current.code!).then(()=>notify('Código copiado.')).catch(notify)}><Clipboard size={16}/> Copiar código</button>}
       <button className="icon" title={chat?'Ocultar conversa':'Mostrar conversa'} aria-label={chat?'Ocultar conversa':'Mostrar conversa'} aria-pressed={chat} onClick={()=>setChat(v=>!v)}><MessageSquare size={19}/></button>
     </div></div>
-    <div className={'call-layout '+(chat?'':'no-chat')}>
+    <div className={'call-layout '+(chat&&visible?'':'no-chat')}>
       <div className="call-media">
         <section className={'stage'+(focused?.publication.track?' presenting':'')+(expanded?' expanded':'')} ref={surface}>
           {focused?.publication.track ? <>
             <Player track={focused.publication.track} kind="video" fit/>
-            <div className="stage-meta"><div><strong>{focused.person.name || 'Participante'}</strong><StageStats track={visible?focused.publication.track:undefined} local={focused.person===media.mine} requested={focused.person===media.mine?media.requestedShare:undefined}/></div>
+            <div className="stage-meta"><strong>{focused.person.name || 'Participante'}</strong>
               <button className="icon" aria-label={fullscreen||expanded?'Sair da tela cheia':'Tela cheia'} title={fullscreen||expanded?'Sair da tela cheia':'Tela cheia'} onClick={()=>void toggleFullScreen()}><Maximize size={17}/></button>
             </div>
           </> : <div className="stage-idle"><Monitor size={34}/><strong>Nenhuma tela compartilhada</strong><p>Use os controles de chamada para apresentar sua tela.</p></div>}
+          <ResizeHandles name="transmissão" id="call.stage" column={stageColumn}/>
         </section>
-        <div className="participant-list">{media.participants.map(p=><ParticipantCard key={p.identity} person={p} mine={p===media.mine} volume={media.sessionVolumes[p.identity]??100} setVolume={n=>media.updateVolume(p.identity,n)}
+        <div className="participant-pane"><div className="participant-list">{media.participants.map(p=><ParticipantCard key={p.identity} person={p} mine={p===media.mine} volume={media.sessionVolumes[p.identity]??100} setVolume={n=>media.updateVolume(p.identity,n)}
           muted={Boolean(media.mutedParticipants[p.identity])} toggleMute={()=>media.toggleParticipantMute(p.identity)} visible={visible}/>)}</div>
+          <ResizeHandles name="participantes" id="call.participants" column={participantColumn}/>
+        </div>
         {media.shares.length>1&&<div className="share-tabs">{media.shares.map(s=><button key={s.person.identity} className={focused?.person===s.person?'quiet selected':'quiet'} onClick={()=>setSelected(s.person.identity)}><Monitor size={15}/>{s.person.name}</button>)}</div>}
       </div>
       {chat&&visible&&<aside className="panel call-chat">
-        <header><h2><MessageSquare size={19} aria-hidden="true"/> Conversa da chamada</h2></header>
+        <header><h2>Conversa da chamada</h2>
+          <details className="call-reactions"><summary aria-label="Reações" title="Reações"><SmilePlus size={18}/></summary>
+            <div className="reactions">{['👍','❤️','👏','😂'].map(reaction=><button className="icon" key={reaction} aria-label={'Reagir '+reaction} onClick={event=>{
+              event.currentTarget.closest('details')?.removeAttribute('open')
+              void api.json('/conversations/call/'+current.id,{text:reaction}).catch(notify)
+            }}>{reaction}</button>)}</div>
+          </details>
+        </header>
         <Conversation key={current.id} api={api} thread={{kind:'call',target:current.id}} signal={version} me={me} notify={notify} onIncoming={legacyMessageSound?()=>{
           if(!media.capturingAudio&&!media.hasShareAudio&&soundEnabled(prefs,'message'))void soundEngine.play('message',prefs.soundVolume)
         }:undefined}/>
-        <div className="reactions">{['👍','❤️','👏','😂'].map(reaction=><button className="icon" key={reaction} aria-label={'Reagir '+reaction} onClick={()=>void api.json('/conversations/call/'+current.id,{text:reaction}).catch(notify)}>{reaction}</button>)}</div>
+        <ResizeHandles name="conversa da chamada" id="call.chat" column={chatColumn}/>
       </aside>}
-    </div>
-    <div className="call-footnote"><span>Mídia sem criptografia de ponta a ponta</span>{media.hasShareAudio&&<span className="green">Áudio do sistema publicado</span>}
-      {media.isolatingAudio&&<span>Som da chamada pausado neste PC durante a captura.</span>}
-      <label>Qualidade solicitada <select value={prefs.quality} disabled={changingQuality} onChange={async e=>{
-        const quality=e.target.value as Quality
-        setChangingQuality(true)
-        try { await media.changeQuality(quality); save({...prefs,quality}) }
-        catch { notify('Não foi possível mudar a qualidade da captura.') }
-        finally { setChangingQuality(false) }
-      }}>{Object.keys(profiles).map(p=><option key={p}>{p}</option>)}</select></label>
     </div>
   </div>
 }

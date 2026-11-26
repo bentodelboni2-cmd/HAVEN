@@ -79,8 +79,10 @@ try {
     fixtureSocket.send(JSON.stringify({id:1,method:'Runtime.evaluate',params:{userGesture:true,expression:
       `const ctx=new AudioContext(); const osc=ctx.createOscillator(); const gain=ctx.createGain(); osc.frequency.value=440; gain.gain.value=.055; osc.connect(gain).connect(ctx.destination); osc.start(); setTimeout(()=>osc.stop(),25000); ctx.resume()`}}))
     await first.click('Iniciar compartilhamento')
+    await first.evalJs("document.querySelector('.call-details').open=true")
     await first.visible('Áudio do sistema publicado')
     await second.send('Page.bringToFront')
+    await second.evalJs("document.querySelector('.call-details').open=true")
     await second.visible('quadros decodificados')
     await first.evalJs("window.qaCueStarts=0;const originalStart=AudioBufferSourceNode.prototype.start;AudioBufferSourceNode.prototype.start=function(...args){window.qaCueStarts++;return originalStart.apply(this,args)};true")
     await first.click('Desativar áudio recebido',true)

@@ -65,3 +65,13 @@ O executável passou no fluxo de cadastro por convite, saída e novo login com u
 - A janela de teste foi recebida a 1824×1080 e 27 FPS. Foram testados compartilhamento com e sem áudio, mudança de qualidade e modo flutuante. A visibilidade do receptor e a indisponibilidade da tela cheia nativa foram simuladas no QA ocluído. O isolamento nativo apresentou resultados variáveis com o tom de diagnóstico. A supressão dos efeitos do HAVEN foi confirmada pela instrumentação do Web Audio.
 - Em 30 s ociosos com SSE ativo, as consultas de estado caíram de 4 para 2. Na repetição pareada, CPU dos processos Electron foi 395 → 360 ms, RAM residente 351 → 345 MiB e memória dedicada de GPU 64 → 59 MiB. Os resultados variaram entre rodadas e não demonstram ganho consistente nesses recursos.
 - Pendente em dispositivos reais: 1080p60 sustentados via tablet entre redes, impacto em jogos, dispositivos físicos de áudio/vídeo e validação auditiva do timbre.
+
+## Acesso por Playit e ngrok
+
+- O tablet respondeu via WSS público e os dois clientes de teste confirmaram o candidato UDP do Playit (RTT de aproximadamente 160 ms) e receberam áudio. O login normal segue usando o banco existente. O compartilhamento de uma janela chegou ao receptor em 1824×1080, com 10 FPS na amostra. Faltam uma chamada em redes diferentes e a validação de 60 FPS sustentados.
+
+## Layout ajustável 0.5.1
+
+- O Electron empacotado passou no teste de arraste na entrada, Início, ajustes, diálogos e chamada. O teste verificou também a barra lateral, o cartão do participante, o teclado, a restauração com clique duplo, a persistência após recarregar e os layouts estreito e ultrawide.
+
+- A revisão verificou o modo Ajustar layout, os detalhes de conexão e o menu de reações num cliente empacotado. Pelo HTTPS do ngrok, a 0.5.1 detectou o manifesto assinado da revisão e a versão interna atual respondeu que já estava atualizada. A rota de download respondeu ao teste parcial do instalador.

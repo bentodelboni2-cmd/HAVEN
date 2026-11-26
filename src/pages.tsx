@@ -2,6 +2,7 @@ import { ArrowLeft, ArrowRight, ChevronDown, Hash, LayoutGrid, MessageSquare, Us
 import type { Api, Channel, Snapshot, Space, Thread } from './api'
 import { online } from './api'
 import { Avatar, Conversation, Empty, Events, Panel, Recent, SectionTitle } from './components'
+import { ResizeHandles } from './resize'
 
 const roles = {owner:'Proprietário',admin:'Administrador',member:'Membro'}
 type Open = (thread:Thread,title:string)=>void
@@ -25,7 +26,7 @@ export function Home({ data, open, onVoice, call, join, goFriends, goSpaces, act
   const upcoming = data.events.filter(event => event.starts > Date.now()).slice(0, 2)
   const hasUpdates = data.latest.length > 0 || upcoming.length > 0
   return <div className="home">
-    <section className="home-landscape" aria-labelledby="greeting">
+    <section className="home-landscape resizable-banner" aria-labelledby="greeting">
       <div className="home-welcome">
         <h1 id="greeting">Olá, {data.me.name}.</h1>
         <div className="home-call-actions">
@@ -33,6 +34,7 @@ export function Home({ data, open, onVoice, call, join, goFriends, goSpaces, act
           <button className="home-join" disabled={busy} onClick={join}><Hash size={17}/>Entrar com código</button>
         </div>
       </div>
+      <ResizeHandles name="boas-vindas" id="home-banner"/>
     </section>
     <div className="home-destinations">
       <button className="destination" onClick={goFriends}>
@@ -69,7 +71,7 @@ export function Spaces({data,space,api,version,notify,open,openSpace,onVoice,edi
   const members=data.members.filter(m=>m.space===space.id)
   return <><div className="heading"><button className="quiet" onClick={()=>openSpace('')}><ArrowLeft size={16}/> Todos os espaços</button>{canEdit&&<div className="inline"><button className="quiet" onClick={()=>edit(space)}><Settings size={16}/> Editar</button><button className="quiet" onClick={()=>invite(space)}><Plus size={17}/> Convidar</button></div>}</div>
     <div className="dashboard"><div className="column">
-      <section className={'hero '+space.theme}><div><h1>{space.name}</h1>{space.description&&<p>{space.description}</p>}<small>{members.length} {members.length===1?'membro':'membros'} · {roles[space.role]}</small></div></section>
+      <section className={'hero resizable-banner '+space.theme}><div><h1>{space.name}</h1>{space.description&&<p>{space.description}</p>}<small>{members.length} {members.length===1?'membro':'membros'} · {roles[space.role]}</small></div><ResizeHandles name="capa do espaço" id="space-banner"/></section>
       <Panel title="Salas" action={canEdit&&<button className="quiet" onClick={()=>editRoom(space)}><Plus size={16}/> Nova sala</button>}>
         <div className="room-grid">{rooms.map(r=><div className={'room-card '+(activeRoom===r.id?'selected':'')} key={r.id}>
           <button className="feed-button" onClick={()=>r.kind==='voice'?onVoice(r):open({kind:'room',target:r.id},r.name)}><span className="glyph">{r.kind==='voice'?<Volume2 size={18}/>:<Hash size={18}/>}</span><div><strong>{r.name}</strong><small>{r.kind==='voice'?(data.occupancy.find(o=>o.room===r.id)?.total||0)+' na sala':(data.unread[r.id]||0)+' não lidas'}</small></div></button>
@@ -83,8 +85,8 @@ export function Spaces({data,space,api,version,notify,open,openSpace,onVoice,edi
     </div><aside className="column">
       <Panel title="Membros"><ul className="feed">{members.map(m=><li key={m.id}><Avatar p={m} presence/><div><strong>{m.name}</strong><small>{roles[m.role]}</small></div>
         {space.role==='owner'&&m.role!=='owner'&&<select aria-label={'Cargo de '+m.name} value={m.role} onChange={e=>role(space,m.id,e.target.value)}><option value="member">Membro</option><option value="admin">Admin</option></select>}</li>)}</ul></Panel>
-      <Panel title="Agenda" action={<button className="icon" aria-label="Agendar encontro" onClick={()=>event(space)}><Plus size={19}/></button>}><Events events={data.events.filter(e=>e.space===space.id)} spaces={data.spaces}/></Panel>
-      <Panel title="Atividade recente"><Recent items={data.latest.filter(r=>rooms.some(c=>c.id===r.target))} open={open}/></Panel>
+      <Panel title="Agenda" layoutId="space-agenda" action={<button className="icon" aria-label="Agendar encontro" onClick={()=>event(space)}><Plus size={19}/></button>}><Events events={data.events.filter(e=>e.space===space.id)} spaces={data.spaces}/></Panel>
+      <Panel title="Atividade recente" layoutId="space-activity"><Recent items={data.latest.filter(r=>rooms.some(c=>c.id===r.target))} open={open}/></Panel>
     </aside></div></>
 }
 export function Friends({data,add,open,call,respond,remove}:{data:Snapshot;add:()=>void;open:Open;call:(id:string,name:string)=>void;respond:(id:string,accept:boolean)=>void;remove:(id:string,name:string)=>void}){

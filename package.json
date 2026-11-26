@@ -1,6 +1,7 @@
 {
   "name": "haven",
-  "version": "0.5.0",
+  "version": "0.5.2",
+  "displayVersion": "0.5.1",
   "description": "Chamadas e espaços privados",
   "author": "HAVEN",
   "private": true,
