@@ -28,7 +28,12 @@ declare global {
     }
   }
 }
-export const baseDefault = import.meta.env.VITE_HAVEN_SERVER || 'http://192.168.0.4:8787'
+const ngrokDefault = 'https://bagpipe-woven-gruffly.ngrok-free.dev'
+export const baseDefault = import.meta.env.VITE_HAVEN_SERVER || ngrokDefault
+export const accountServerKey = 'haven.account-server'
+export function migrateAccountServer(address: string) {
+  return baseDefault===ngrokDefault && address==='http://192.168.0.4:8787' ? baseDefault : address
+}
 export function endpoint(value: string) {
   const url = new URL(value.trim())
   const privateHost = /^(?:localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(?:1[6-9]|2\d|3[01])\.\d+\.\d+)$/

@@ -227,6 +227,8 @@ dialog p{color:var(--dim)}
 .password-control { position: relative }
 .entry .password-control input { padding-right: 46px }
 .password-control button { position: absolute; right: 4px; top: 4px; height: 37px; width: 37px; padding: 0; color: #b7c6ce; background: transparent }
+.entry-form .entry-remember { display: flex; align-items: center; gap: 9px; color: var(--dim); cursor: pointer }
+.entry-remember input { margin: 0; cursor: pointer }
 .entry-submit { min-height: 45px; margin-top: 1px; justify-content: space-between; padding: 9px 16px }
 .entry-invite { display: flex; flex-wrap: wrap; align-items: baseline; gap: 7px; font-size: 13px; color: #b4bec8 }
 .entry-invite button, .entry-back, .network-toggle, .text-action { padding: 0; border: 0; border-radius: 3px; background: transparent; font-size: 13px; width: fit-content }

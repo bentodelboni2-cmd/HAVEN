@@ -47,3 +47,8 @@ O executável passou no fluxo de cadastro por convite, saída e novo login com u
 ## Ngrok temporário
 
 - Validado em 0.4.1 empacotada: HTTPS pelo domínio de desenvolvimento, GET protegido e POST de login com CORS. O Electron envia o identificador HAVEN apenas para domínios HTTPS gratuitos do ngrok. A mídia ainda usa o LiveKit privado do tablet.
+
+## Entrada 0.4.2
+
+- O endereço padrão é o túnel HTTPS do HAVEN. A migração troca o antigo padrão LAN e as sessões desse endereço. Escolhas manuais feitas na nova versão e demais endereços são preservados.
+- Lembrar de mim vem marcado. A sessão criptografada pode ser restaurada até o vencimento do token. Com a opção desmarcada, o token fica apenas em memória. Testado com o Windows empacotado.

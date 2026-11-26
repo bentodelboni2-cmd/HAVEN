@@ -20,13 +20,14 @@ async function accountServer(value: string) {
   throw new Error(connectionMessage(address,new TypeError(),false))
 }
 
-export function Login({ base, authorized }: { base: string; authorized: (address: string, token: string, created: boolean) => Promise<void> }) {
+export function Login({ base, authorized }: { base: string; authorized: (address: string, token: string, created: boolean, remember: boolean) => Promise<void> }) {
   const [step, setStep] = useState<Step>('login')
   const [invite, setInvite] = useState('')
   const [name, setName] = useState('')
   const [handle, setHandle] = useState('')
   const [password, setPassword] = useState('')
   const [reveal, setReveal] = useState(false)
+  const [remember, setRemember] = useState(()=>localStorage.getItem('haven.remember')!=='0')
   const [address, setAddress] = useState(base)
   const [network, setNetwork] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -60,7 +61,7 @@ export function Login({ base, authorized }: { base: string; authorized: (address
       const created = step === 'profile'
       const body = created ? { handle, password, name, invite: invite.trim() } : { handle, password }
       const result = await client(origin).json<{token: string}>(created ? '/auth/register' : '/auth/login', body, AbortSignal.timeout(15000))
-      await authorized(origin, result.token, created)
+      await authorized(origin, result.token, created, remember)
     } catch (cause) {
       if (step === 'profile' && cause instanceof ApiError && cause.status === 403) {
         setStep('invite')
@@ -100,6 +101,10 @@ export function Login({ base, authorized }: { base: string; authorized: (address
                 value={password} onChange={e => setPassword(e.target.value)} required minLength={step === 'profile' ? 10 : undefined} maxLength={128} autoComplete={step === 'profile' ? 'new-password' : 'current-password'}/>
               <button type="button" aria-label={reveal ? 'Ocultar senha' : 'Mostrar senha'} onClick={() => setReveal(!reveal)}>{reveal ? <EyeOff size={17}/> : <Eye size={17}/>}</button>
             </div></div>
+            {window.haven && <label className="entry-remember"><input type="checkbox" name="remember" checked={remember} disabled={busy} onChange={e=>{
+              setRemember(e.target.checked)
+              localStorage.setItem('haven.remember',e.target.checked?'1':'0')
+            }}/>Lembrar de mim</label>}
           </>}
           {error && <p className="entry-error" role="alert">{error}</p>}
           <button className="accent entry-submit" disabled={busy}>{busy ? (step === 'profile' ? 'Criando sua conta…' : 'Entrando…') : step === 'login' ? 'Entrar' : step === 'invite' ? 'Continuar' : 'Criar conta'}<ArrowRight size={17}/></button>

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { AudioLines, Bell, CalendarDays, CirclePlus, Clipboard, House, Images, LayoutGrid, Phone, Plus, Settings, Users, X } from 'lucide-react'
-import { ApiError, baseDefault, client, connectionMessage, describe, endpoint } from './api'
+import { ApiError, accountServerKey, baseDefault, client, connectionMessage, describe, endpoint, migrateAccountServer } from './api'
 import { AdminPanel } from './admin-panel'
 import type { Call, Channel, Snapshot, Space, Thread } from './api'
 import { Avatar, Conversation, Dialog, Empty, Events, Panel, Recent, SectionTitle } from './components'
@@ -22,7 +22,7 @@ const nav = [
 type Page = (typeof nav)[number]['label'] | 'Ajustes' | 'Administração'
 
 function App() {
-  const [base,setBase]=useState(()=>localStorage.getItem('haven.backend')||baseDefault)
+  const [base,setBase]=useState(()=>localStorage.getItem(accountServerKey)||migrateAccountServer(localStorage.getItem('haven.backend')||baseDefault))
   const [token,setToken]=useState(()=>sessionStorage.getItem('haven.token')||'')
   const [restoring,setRestoring]=useState(Boolean(window.haven))
   const api=useMemo(()=>client(base,token),[base,token])
@@ -63,9 +63,14 @@ function App() {
   },[notify])
   useEffect(()=>{
     if(!window.haven)return
-    void window.haven.readSession().then(value=>{
+    void window.haven.readSession().then(async value=>{
       if(!value)return
-      setBase(endpoint(value.base));setToken(value.token)
+      const savedAddress=endpoint(value.base)
+      const address=localStorage.getItem(accountServerKey)===null ? migrateAccountServer(savedAddress) : savedAddress
+      setBase(address);setToken(value.token)
+      if(address!==savedAddress && await window.haven?.saveSession({base:address,token:value.token}).catch(()=>false)) {
+        localStorage.setItem(accountServerKey,address)
+      }
     }).catch(()=>{}).finally(()=>setRestoring(false))
   },[])
   useEffect(()=>{
@@ -121,18 +126,22 @@ function App() {
     const health=await client(address).json<{ok?:boolean}>('/health',undefined,AbortSignal.timeout(6000))
     if(health.ok!==true)throw new Error('O endereço não respondeu como servidor do HAVEN.')
     await signOut()
-    localStorage.setItem('haven.backend',address)
+    localStorage.setItem(accountServerKey,address)
     setBase(address)
     setUpdate(null)
   }
   if(restoring)return <div className="waiting"><main role="status">Restaurando sua sessão…</main></div>
-  if(!token)return <Login base={base} authorized={async (address,next,created)=>{
+  if(!token)return <Login base={base} authorized={async (address,next,created,remember)=>{
     if(window.haven) {
-      const saved = await window.haven.saveSession({base:address,token:next}).catch(()=>false)
-      if(!saved)notify('A sessão ficará ativa até fechar o HAVEN.')
+      if(remember) {
+        const saved=await window.haven.saveSession({base:address,token:next}).catch(()=>false)
+        if(!saved)notify('A sessão ficará ativa até fechar o HAVEN.')
+      } else {
+        await window.haven.clearSession().catch(()=>{throw new Error('Não foi possível limpar a sessão salva neste PC.')})
+      }
     }
     if(created)notify('Conta criada. Boas-vindas ao HAVEN!')
-    localStorage.setItem('haven.backend',address);setBase(address);setToken(next);refresh()
+    localStorage.setItem(accountServerKey,address);setBase(address);setToken(next);refresh()
   }}/>
   if(!data)return <div className="waiting"><header className="topbar"><Brand/><WindowButtons/></header><main><h1>{connection||'Conectando ao HAVEN…'}</h1>
     {connection&&<div className="inline"><button className="accent" onClick={refresh}>Tentar novamente</button><button className="quiet" onClick={invalidate}>Voltar ao login</button></div>}
