@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { AudioLines, Bell, CalendarDays, CirclePlus, Clipboard, House, Images, LayoutGrid, Phone, Plus, Settings, Users, X } from 'lucide-react'
-import { ApiError, baseDefault, client, describe } from './api'
+import { ApiError, baseDefault, client, describe, endpoint } from './api'
 import type { Call, Channel, Snapshot, Space, Thread } from './api'
 import { Avatar, Conversation, Dialog, Empty, Events, Panel, Recent, SectionTitle } from './components'
 import { CallAudio, CallControls, CallView } from './call'
@@ -23,6 +23,7 @@ type Page = (typeof nav)[number]['label'] | 'Ajustes'
 function App() {
   const [base,setBase]=useState(()=>localStorage.getItem('haven.backend')||baseDefault)
   const [token,setToken]=useState(()=>sessionStorage.getItem('haven.token')||'')
+  const [restoring,setRestoring]=useState(Boolean(window.haven))
   const api=useMemo(()=>client(base,token),[base,token])
   const [data,setData]=useState<Snapshot>()
   const [connection,setConnection]=useState('')
@@ -30,6 +31,7 @@ function App() {
   const [spaceId,setSpaceId]=useState('')
   const [thread,setThread]=useState<{thread:Thread;title:string}>()
   const [modal,setModal]=useState<{title:string;content:ReactNode}>()
+  const [showNotifications,setShowNotifications]=useState(false)
   const [toast,setToast]=useState('')
   const [version,setVersion]=useState(0)
   const [prefs,setPrefs]=useState<Prefs>(()=>{
@@ -44,7 +46,7 @@ function App() {
   const media=useCall(api,prefs)
   const leave=useRef(media.leave)
   leave.current=media.leave
-  const close=()=>setModal(undefined)
+  const close=()=>{setModal(undefined);setShowNotifications(false)}
   const save=(p:Prefs)=>{localStorage.setItem('haven.preferences',JSON.stringify(p));setPrefs(p)}
   const notify=useCallback((error:unknown)=>{
     setToast(describe(error))
@@ -52,24 +54,32 @@ function App() {
     toastTimer.current=window.setTimeout(()=>setToast(''),5500)
   },[])
   const refresh=useCallback(()=>setVersion(v=>v+1),[])
-  const invalidate=useCallback(()=>{
+  const invalidate=useCallback(async ()=>{
+    await window.haven?.clearSession().catch(()=>notify('Não foi possível remover a sessão gravada neste PC.'))
     sessionStorage.removeItem('haven.token')
-    setToken('');setData(undefined);setThread(undefined);setModal(undefined);setPage('Início')
+    setToken('');setData(undefined);setThread(undefined);setModal(undefined);setShowNotifications(false);setConnection('');setPage('Início')
+  },[notify])
+  useEffect(()=>{
+    if(!window.haven)return
+    void window.haven.readSession().then(value=>{
+      if(!value)return
+      setBase(endpoint(value.base));setToken(value.token)
+    }).catch(()=>{}).finally(()=>setRestoring(false))
   },[])
   useEffect(()=>{
-    if(!token)return
+    if(restoring||!token)return
     const controller=new AbortController()
     api.json<Snapshot>('/state',undefined,controller.signal).then(next=>{
       if(!controller.signal.aborted){setData(next);setConnection('')}
     }).catch(error=>{
       if(controller.signal.aborted)return
-      if(error instanceof ApiError&&error.status===401){void leave.current();invalidate()}
+      if(error instanceof ApiError&&error.status===401){void leave.current();void invalidate()}
       else setConnection(describe(error))
     })
     return ()=>controller.abort()
-  },[api,token,version,invalidate])
+  },[api,token,version,invalidate,restoring])
   useEffect(()=>{
-    if(!token)return
+    if(restoring||!token)return
     const controller=new AbortController()
     let retry=0
     let batch=0
@@ -80,19 +90,24 @@ function App() {
     connect()
     const timer=window.setInterval(refresh,12000)
     return ()=>{controller.abort();window.clearTimeout(retry);window.clearTimeout(batch);window.clearInterval(timer)}
-  },[api,token,refresh])
+  },[api,token,refresh,restoring])
   const hasActive=Boolean(media.active)
   useEffect(()=>{
     if(!hasActive&&hud){setHud(false);void window.haven?.window('restore').catch(notify)}
   },[hasActive,hud,notify])
   const signOut=async()=>{
-    await media.leave()
-    await api.json('/logout',{})
-    invalidate()
+    await media.leave().catch(()=>{})
+    await api.json('/logout',{},AbortSignal.timeout(2500)).catch(()=>{})
+    await invalidate()
   }
-  if(!token)return <Login base={base} authorized={(address,next,created)=>{
+  if(restoring)return <div className="waiting"><main role="status">Restaurando sua sessão…</main></div>
+  if(!token)return <Login base={base} authorized={async (address,next,created)=>{
+    if(window.haven) {
+      const saved = await window.haven.saveSession({base:address,token:next}).catch(()=>false)
+      if(!saved)notify('A sessão ficará ativa até fechar o HAVEN.')
+    }
     if(created)notify('Conta criada. Boas-vindas ao HAVEN!')
-    localStorage.setItem('haven.backend',address);sessionStorage.setItem('haven.token',next);setBase(address);setToken(next);refresh()
+    localStorage.setItem('haven.backend',address);setBase(address);setToken(next);refresh()
   }}/>
   if(!data)return <div className="waiting"><header className="topbar"><Brand/><WindowButtons/></header><main><h1>{connection||'Conectando ao HAVEN…'}</h1>
     {connection&&<div className="inline"><button className="accent" onClick={refresh}>Tentar novamente</button><button className="quiet" onClick={invalidate}>Voltar ao login</button></div>}
@@ -102,6 +117,7 @@ function App() {
   const accepted=data.friends.filter(f=>f.accepted)
   const invites=data.calls.filter(c=>c.state==='invited')
   const pendingFriends=data.friends.filter(f=>!f.accepted&&f.sender!==data.me.id).length
+  const outgoingPending=(data.calls.find(call=>call.id===media.active?.id)?.pending??0)>0
   const navigate=(next:Page)=>{setThread(undefined);setPage(next);if(next==='Espaços')setSpaceId('')}
   const openSpace=(id:string)=>{navigate('Espaços');setSpaceId(id)}
   const openThread=(t:Thread,title:string)=>setThread({thread:t,title})
@@ -140,6 +156,10 @@ function App() {
     await enter(()=>api.json('/calls',{users}),'Chamada em grupo')
   })
   const addFriend=()=>form('Adicionar amigo','Enviar pedido',<label>Nome de usuário<input name="handle" required minLength={3} maxLength={24}/></label>,async f=>{await api.json('/friends/request',{handle:f.get('handle')});notify('Pedido enviado.')})
+  const removeFriend=(id:string,name:string)=>form('Remover amigo','Remover',<p>Remover {name} da sua lista de amigos?</p>,async()=>{
+    await api.json('/friends/'+id+'/remove',{})
+    notify('Amigo removido.')
+  })
   const editSpace=(s:Space)=>form('Editar espaço','Salvar',<>
     <label>Nome<input name="name" defaultValue={s.name} required maxLength={48}/></label><label>Descrição<input name="description" defaultValue={s.description} maxLength={240}/></label>
     <label>Banner<select name="theme" defaultValue={s.theme}><option value="serra">Serra</option><option value="noite">Noite</option><option value="bruma">Bruma</option></select></label>
@@ -164,7 +184,7 @@ function App() {
         join={joinCall} goFriends={()=>navigate('Amigos')} goSpaces={()=>data.spaces.length ? navigate('Espaços') : joinSpace()} active={hasActive} busy={media.busy}/>
       case 'Espaços': return <Spaces data={data} space={space} api={api} version={version} notify={notify} open={openThread} openSpace={openSpace} onVoice={voice} edit={editSpace} invite={inviteSpace} create={createSpace} join={joinSpace} editRoom={editRoom} event={eventForm}
         activeRoom={data.calls.find(c=>c.id===media.active?.id)?.room||undefined} role={(s,user,role)=>void act(()=>api.json('/spaces/'+s.id+'/role',{user,role}))}/>
-      case 'Amigos': return <Friends data={data} add={addFriend} open={openThread} call={(id,name)=>start({users:[id]},'Chamada com '+name)} respond={(id,accept)=>void act(()=>api.json('/friends/'+id+'/respond',{accept}))}/>
+      case 'Amigos': return <Friends data={data} add={addFriend} open={openThread} call={(id,name)=>start({users:[id]},'Chamada com '+name)} respond={(id,accept)=>void act(()=>api.json('/friends/'+id+'/respond',{accept}))} remove={removeFriend}/>
       case 'Chamadas': return media.active?<CallView key={media.active.id} api={api} media={media} prefs={prefs} save={save} notify={notify} me={data.me.id} version={version}/>:
         <><div className="heading"><SectionTitle>Chamadas</SectionTitle><div className="inline wrap"><button className="quiet" onClick={joinCall}>Entrar com código</button><button className="quiet" disabled={media.busy} onClick={()=>start({},'Compartilhamento de tela',true)}>Compartilhar tela</button><button className="quiet" onClick={group}><Users size={17}/> Chamada em grupo</button><button className="accent" onClick={()=>start({},'Chamada privada')} disabled={media.busy}><Phone size={17}/> Chamada privada</button></div></div>
         {media.busy&&<p role="status">Conectando à chamada…</p>}<Panel title="Convites de chamada">{pendingCalls()}</Panel></>
@@ -182,7 +202,7 @@ function App() {
     <header className="topbar">
       <button className="wordmark" onClick={()=>navigate('Início')} aria-label="HAVEN, início"><Brand/></button>
       {!hud&&<nav aria-label="Navegação principal">{nav.map(({label,icon:Icon})=><button key={label} className={page===label?'current':''} aria-current={page===label?'page':undefined} onClick={()=>navigate(label)}><Icon size={17} aria-hidden="true"/>{label}</button>)}</nav>}
-      <div className="top-right">{!hud&&<button className="icon notifications" aria-label="Notificações" onClick={()=>setModal({title:'Notificações',content:<div className="stack">{pendingCalls()}{pendingFriends>0&&<button className="quiet" onClick={()=>{close();navigate('Amigos')}}>Ver pedidos de amizade</button>}</div>})}><Bell size={19}/>{invites.length+pendingFriends>0&&<i>{invites.length+pendingFriends}</i>}</button>}<WindowButtons/></div>
+      <div className="top-right">{!hud&&<button className="icon notifications" aria-label="Notificações" onClick={()=>setShowNotifications(true)}><Bell size={19}/>{invites.length+pendingFriends>0&&<i>{invites.length+pendingFriends}</i>}</button>}<WindowButtons/></div>
     </header>
     {!hud&&<><aside className="rail" aria-label="Espaços e ajustes">
       <button className={'rail-button '+(page==='Espaços'&&!spaceId?'selected':'')} title="Todos os espaços" aria-label="Todos os espaços" onClick={()=>navigate('Espaços')}><LayoutGrid size={20}/></button>{data.spaces.length>0&&<hr/>}
@@ -196,9 +216,10 @@ function App() {
         <Panel title="Conversa"><Conversation key={thread.thread.kind+thread.thread.target} api={api} thread={thread.thread} signal={version} me={data.me.id} notify={notify}/></Panel></>:content()}
     </main></>}
     {hud&&<main className="hud-info"><AudioLines size={20}/><strong>{media.active?.title}</strong></main>}
-    {media.active&&<CallControls media={media} prefs={prefs} notify={notify} open={()=>navigate('Chamadas')} toggleHud={toggleHud} hud={hud} shareRequest={shareRequest} onShareOpened={()=>setShareRequest(0)}/>}
+    {media.active&&<CallControls media={media} prefs={prefs} notify={notify} open={()=>navigate('Chamadas')} toggleHud={toggleHud} hud={hud} shareRequest={shareRequest} onShareOpened={()=>setShareRequest(0)} pending={outgoingPending}/>}
     <CallAudio media={media} prefs={prefs}/>
     {modal&&<Dialog title={modal.title} close={close}>{modal.content}</Dialog>}
+    {showNotifications&&<Dialog title="Notificações" close={close}><div className="stack">{pendingCalls()}{pendingFriends>0&&<button className="quiet" onClick={()=>{close();navigate('Amigos')}}>Ver pedidos de amizade</button>}</div></Dialog>}
     {toast&&<div className="toast" role="status">{toast}<button className="icon" aria-label="Dispensar aviso" onClick={()=>setToast('')}><X size={16}/></button></div>}
   </div>
 }

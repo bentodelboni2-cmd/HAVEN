@@ -65,6 +65,9 @@ test('contas privadas, histórico persistente, arquivos e autorização do LiveK
   assert.equal((await request('/conversations/dm/'+a.id,{token:bob})).rows[0].body,'Olá')
 
   const call = (await request('/calls',{token:alice,payload:{users:[b.id]}})).id
+  const repeats = await Promise.all([1,2,3].map(()=>request('/calls',{token:alice,payload:{users:[b.id,b.id]}})))
+  assert.ok(repeats.every(result=>result.id===call))
+  assert.equal((await request('/state',{token:bob})).calls.filter(item=>item.state==='invited').length,1)
   await request('/media-token',{token:outsider,payload:{id:call},status:403})
   await request('/media-token',{token:bob,payload:{id:call},status:403})
   await request('/calls/'+call+'/respond',{token:bob,payload:{state:'joined'}})
@@ -76,6 +79,25 @@ test('contas privadas, histórico persistente, arquivos e autorização do LiveK
   assert.ok(verified.exp-Math.floor(Date.now()/1000)<=300)
   await request('/calls/'+call+'/respond',{token:bob,payload:{state:'left'}})
   await request('/media-token',{token:bob,payload:{id:call},status:403})
+  const canceled = (await request('/calls',{token:alice,payload:{users:[b.id]}})).id
+  assert.notEqual(canceled,call)
+  await request('/calls/'+canceled+'/respond',{token:alice,payload:{state:'left'}})
+  await request('/calls/'+canceled+'/respond',{token:bob,payload:{state:'joined'},status:409})
+  assert.ok(!(await request('/state',{token:bob})).calls.some(item=>item.id===canceled))
+  const missed = (await request('/calls',{token:alice,payload:{users:[b.id]}})).id
+  db.prepare('UPDATE calls SET created=? WHERE id=?').run(Date.now()-61_000,missed)
+  assert.ok(!(await request('/state',{token:bob})).calls.some(item=>item.id===missed))
+  await request('/calls/'+missed+'/respond',{token:bob,payload:{state:'joined'},status:409})
+  const next = (await request('/calls',{token:alice,payload:{users:[b.id]}})).id
+  assert.notEqual(next,missed)
+  assert.equal((await request('/calls',{token:bob,payload:{users:[a.id]}})).id,next)
+  await request('/calls/'+next+'/respond',{token:bob,payload:{state:'left'}})
+  const declined = (await request('/calls',{token:alice,payload:{users:[b.id]}})).id
+  await request('/calls/'+declined+'/respond',{token:bob,payload:{state:'declined'}})
+  await request('/calls/'+declined+'/respond',{token:bob,payload:{state:'joined'},status:409})
+  await request('/friends/'+a.id+'/remove',{token:bob,payload:{}})
+  await request('/friends/'+a.id+'/remove',{token:bob,payload:{}})
+  await request('/conversations/dm/'+a.id,{token:bob,status:403})
   await request('/logout',{token:outsider,payload:{}})
   await request('/state',{token:outsider,status:401})
 

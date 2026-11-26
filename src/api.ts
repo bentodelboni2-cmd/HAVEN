@@ -4,7 +4,7 @@ export type Role = 'owner' | 'admin' | 'member'
 export type Space = { id: string; name: string; description: string; theme: string; role: Role }
 export type Channel = { id: string; name: string; kind: 'voice' | 'text'; space: string }
 export type Event = { id: string; space: string; title: string; starts: number }
-export type Call = { id: string; name: string; room: string | null; state: 'joined' | 'invited' }
+export type Call = { id: string; name: string; room: string | null; state: 'joined' | 'invited'; pending?: number }
 export type Thread = { kind: 'room' | 'dm' | 'call' | 'wall'; target: string }
 export type Message = { id: number; name: string; sender: string; body: string; sent: number; color: string; kind: string | null }
 export type Snapshot = {
@@ -15,7 +15,14 @@ export type Snapshot = {
 export type CaptureSource = { id: string; name: string; thumbnail: string }
 declare global {
   interface Window {
-    haven?: { sources: () => Promise<CaptureSource[]>; select: (id: string, audio: boolean) => Promise<void>; window: (action: 'min'|'max'|'close'|'hud'|'restore') => Promise<void> }
+    haven?: {
+      sources: () => Promise<CaptureSource[]>; select: (id: string) => Promise<boolean>; clearSources: () => Promise<void>
+      canIsolateAudio: () => Promise<boolean>
+      readSession: () => Promise<{base:string;token:string}|null>
+      saveSession: (value:{base:string;token:string}) => Promise<boolean>
+      clearSession: () => Promise<void>
+      window: (action: 'min'|'max'|'close'|'hud'|'restore') => Promise<void>
+    }
   }
 }
 export const baseDefault = 'http://127.0.0.1:8787'

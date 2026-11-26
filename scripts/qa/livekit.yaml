@@ -1,0 +1,4 @@
+port: 17980
+rtc:
+  tcp_port: 17981
+  udp_port: 17982

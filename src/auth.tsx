@@ -20,7 +20,7 @@ async function accountServer(value: string) {
   throw new Error('Sem conexão com o servidor de contas. Confira o endereço e se o HAVEN está rodando no servidor.')
 }
 
-export function Login({ base, authorized }: { base: string; authorized: (address: string, token: string, created: boolean) => void }) {
+export function Login({ base, authorized }: { base: string; authorized: (address: string, token: string, created: boolean) => Promise<void> }) {
   const [step, setStep] = useState<Step>('login')
   const [invite, setInvite] = useState('')
   const [name, setName] = useState('')
@@ -60,7 +60,7 @@ export function Login({ base, authorized }: { base: string; authorized: (address
       const created = step === 'profile'
       const body = created ? { handle, password, name, invite: invite.trim() } : { handle, password }
       const result = await client(origin).json<{token: string}>(created ? '/auth/register' : '/auth/login', body, AbortSignal.timeout(15000))
-      authorized(origin, result.token, created)
+      await authorized(origin, result.token, created)
     } catch (cause) {
       if (step === 'profile' && cause instanceof ApiError && cause.status === 403) {
         setStep('invite')

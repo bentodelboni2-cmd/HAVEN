@@ -4,6 +4,7 @@ import { AccessToken, RoomServiceClient, TrackSource } from 'livekit-server-sdk'
 import { clock, digest, issueInvite, passwordHash, passwordMatches, runTx, secret } from './db.mjs'
 
 const DAY = 86_400_000
+const RING_MS = 60_000
 const fail = (statusCode, message) => Object.assign(new Error(message), { statusCode })
 const bad = message => { throw fail(400, message) }
 const denied = () => { throw fail(403, 'Acesso indisponível.') }
@@ -204,7 +205,12 @@ export function makeServer(db, config) {
     const rooms = all('SELECT r.* FROM rooms r JOIN members m ON m.space=r.space WHERE m.user=? ORDER BY r.name',u)
     const friends = all(`SELECT ${person},f.sender,f.accepted FROM friends f JOIN users u ON u.id=CASE WHEN f.a=? THEN f.b ELSE f.a END WHERE f.a=? OR f.b=? ORDER BY u.name`,u,u,u)
     const members = all(`SELECT ${person},other.role,other.space FROM members mine JOIN members other ON mine.space=other.space JOIN users u ON u.id=other.user WHERE mine.user=? ORDER BY u.name`,u)
-    const calls = all("SELECT c.id,c.creator,c.room,c.created,cm.state,u.name FROM calls c JOIN call_members cm ON cm.call=c.id JOIN users u ON u.id=c.creator WHERE cm.user=? AND c.expires>? AND cm.state IN ('invited','joined') ORDER BY c.created DESC LIMIT 25",u,clock())
+    const now = clock()
+    const calls = all(`SELECT c.id,c.creator,c.room,c.created,cm.state,u.name,
+      CASE WHEN c.created>? THEN (SELECT COUNT(*) FROM call_members waiting WHERE waiting.call=c.id AND waiting.state='invited') ELSE 0 END AS pending
+      FROM calls c JOIN call_members cm ON cm.call=c.id JOIN users u ON u.id=c.creator
+      WHERE cm.user=? AND c.expires>? AND (cm.state='joined' OR (cm.state='invited' AND c.created>?))
+      ORDER BY c.created DESC LIMIT 25`,now-RING_MS,u,now,now-RING_MS)
     const events = all('SELECT e.* FROM events e JOIN members m ON m.space=e.space WHERE m.user=? AND e.starts>? ORDER BY e.starts LIMIT 100',u,clock()-DAY)
     const liveRooms = all("SELECT DISTINCT c.id,c.room FROM calls c JOIN rooms r ON c.room=r.id JOIN members m ON m.space=r.space JOIN call_members cm ON cm.call=c.id JOIN users u ON u.id=cm.user WHERE m.user=? AND c.expires>? AND cm.state='joined' AND u.seen>? ORDER BY c.created DESC LIMIT 24",u,clock(),clock()-45000)
     const counts = [...rooms.filter(r=>r.kind==='text').map(r=>['room',r.id]), ...friends.filter(f=>f.accepted).map(f=>['dm',f.id])]
@@ -243,6 +249,12 @@ export function makeServer(db, config) {
     else run('DELETE FROM friends WHERE a=? AND b=?',...pair(u.id,other))
     return { ok:true }
   })
+  POST('/friends/:id/remove', ({params:p},u) => {
+    const [a,b] = pair(u.id,id(p.id))
+    run('DELETE FROM friends WHERE a=? AND b=?',a,b)
+    return { ok:true }
+  })
+
   POST('/spaces', ({body:b},u) => {
     const name = str(b?.name,1,48)
     const description = str(b.description ?? '',0,240)
@@ -308,13 +320,32 @@ export function makeServer(db, config) {
     const voice = b?.room ? room(b.room,u.id,'voice') : null
     const targets = b?.users ?? []
     if (!Array.isArray(targets) || targets.length > 12 || (voice && targets.length)) bad('Convites inválidos.')
-    for (const target of new Set(targets)) if (!friendship(u.id,id(target))?.accepted) denied()
+    const recipients = [...new Set(targets)]
+    for (const target of recipients) if (target === u.id || !friendship(u.id,id(target))?.accepted) denied()
+    if (recipients.length) {
+      const members = [u.id,...recipients]
+      const params = members.map(()=>'?').join(',')
+      const existing = get(`SELECT c.id, self.state FROM calls c
+        JOIN call_members self ON self.call=c.id AND self.user=?
+        JOIN call_members host ON host.call=c.id AND host.user=c.creator AND host.state='joined'
+        WHERE c.room IS NULL AND c.code IS NULL AND c.expires>? AND c.created>?
+        AND self.state IN ('joined','invited')
+        AND EXISTS (SELECT 1 FROM call_members WHERE call=c.id AND user<>c.creator
+          AND state IN ('joined','invited'))
+        AND (SELECT COUNT(*) FROM call_members WHERE call=c.id)=?
+        AND NOT EXISTS (SELECT 1 FROM call_members WHERE call=c.id AND user NOT IN (${params}))
+        ORDER BY c.created DESC LIMIT 1`,u.id,clock(),clock()-RING_MS,members.length,...members)
+      if (existing) {
+        if (existing.state==='invited') run("UPDATE call_members SET state='joined' WHERE call=? AND user=?",existing.id,u.id)
+        return { id:existing.id, code:null }
+      }
+    }
     const open = voice && get('SELECT id FROM calls WHERE room=? AND expires>? ORDER BY created DESC LIMIT 1',voice.id,clock())
     const cid = open?.id || randomUUID()
     const code = !voice && !targets.length ? randomUUID().replaceAll('-','').slice(0,16) : null
     if (!open) run('INSERT INTO calls VALUES(?,?,?,?,?,?)',cid,u.id,voice?.id ?? null,code,clock(),clock()+DAY)
     run("INSERT INTO call_members VALUES(?,?,'joined') ON CONFLICT(call,user) DO UPDATE SET state='joined'",cid,u.id)
-    for (const target of new Set(targets)) run("INSERT INTO call_members VALUES(?,?,'invited')",cid,target)
+    for (const target of recipients) run("INSERT INTO call_members VALUES(?,?,'invited')",cid,target)
     return { id:cid, code }
   }))
   POST('/calls/join', ({body:b},u) => {
@@ -326,8 +357,16 @@ export function makeServer(db, config) {
   POST('/calls/:id/respond', async ({params:p,body:b},u) => {
     const existing = call(p.id,u.id)
     if (!['joined','declined','left'].includes(b?.state)) bad('Resposta inválida.')
-    if (b.state === 'joined' && !['invited','joined'].includes(existing.state)) denied()
-    run('UPDATE call_members SET state=? WHERE call=? AND user=?',b.state,p.id,u.id)
+    const staleInvite = existing.state==='invited' && existing.created<=clock()-RING_MS
+    if (b.state === 'joined' && (staleInvite || !['invited','joined'].includes(existing.state))) {
+      throw fail(409,'Este convite de chamada expirou ou foi cancelado.')
+    }
+    runTx(db, () => {
+      run('UPDATE call_members SET state=? WHERE call=? AND user=?',b.state,p.id,u.id)
+      if (existing.creator === u.id && b.state !== 'joined') {
+        run("UPDATE call_members SET state='left' WHERE call=? AND state='invited'",p.id)
+      }
+    })
     voiceStatus.delete(p.id)
     if (existing.state === 'joined' && b.state !== 'joined') {
       await roomService.removeParticipant(p.id,u.id).catch(()=>{})

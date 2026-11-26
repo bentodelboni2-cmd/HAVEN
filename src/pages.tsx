@@ -87,14 +87,14 @@ export function Spaces({data,space,api,version,notify,open,openSpace,onVoice,edi
       <Panel title="Atividade recente"><Recent items={data.latest.filter(r=>rooms.some(c=>c.id===r.target))} open={open}/></Panel>
     </aside></div></>
 }
-export function Friends({data,add,open,call,respond}:{data:Snapshot;add:()=>void;open:Open;call:(id:string,name:string)=>void;respond:(id:string,accept:boolean)=>void}){
+export function Friends({data,add,open,call,respond,remove}:{data:Snapshot;add:()=>void;open:Open;call:(id:string,name:string)=>void;respond:(id:string,accept:boolean)=>void;remove:(id:string,name:string)=>void}){
   if(!data.friends.length)return <><SectionTitle>Amigos</SectionTitle><section className="collection-empty">
     <Users size={27}/><h2>Encontre seu primeiro amigo</h2><p>Adicione alguém pelo nome de usuário para conversar ou ligar.</p>
     <button className="accent" onClick={add}><Plus size={16}/> Adicionar amigo</button>
   </section></>
   return <><div className="heading"><SectionTitle>Amigos</SectionTitle><button className="accent" onClick={add}><Plus size={17}/> Adicionar amigo</button></div>
     <Panel title="Seus amigos"><ul className="feed friends">{data.friends.map(f=><li key={f.id}><Avatar p={f} presence/><div><strong>{f.name}</strong><small>@{f.handle} · {f.accepted?(online(f)?'Online':'Offline'):f.sender===data.me.id?'Pedido enviado':'Pedido recebido'}</small></div>
-      {f.accepted?<div className="inline"><button className="quiet" onClick={()=>open({kind:'dm',target:f.id},f.name)}><MessageSquare size={17}/> Mensagem {data.unread[f.id]||''}</button><button className="quiet" onClick={()=>call(f.id,f.name)}><Phone size={17}/> Ligar</button></div>:
+      {f.accepted?<div className="inline wrap"><button className="quiet" onClick={()=>open({kind:'dm',target:f.id},f.name)}><MessageSquare size={17}/> Mensagem {data.unread[f.id]||''}</button><button className="quiet" onClick={()=>call(f.id,f.name)}><Phone size={17}/> Ligar</button><button className="quiet" onClick={()=>remove(f.id,f.name)}>Remover</button></div>:
         f.sender!==data.me.id&&<div className="inline">{[true,false].map(accept=><button key={String(accept)} className={accept?'accent':'quiet'} onClick={()=>respond(f.id,accept)}>{accept?'Aceitar':'Recusar'}</button>)}</div>}
     </li>)}</ul></Panel></>
 }

@@ -119,6 +119,10 @@ hr{border:0;border-top:1px solid var(--line);width:30px;margin:2px auto}
 .stage{position:relative;min-height:260px;display:grid;place-items:center;background:#141c27;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;isolation:isolate}
 .stage video{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}
 .stage:fullscreen{border:0;border-radius:0;background:#080c11}
+.stage.expanded{position:fixed;inset:12px;z-index:6;background:#080c11}
+.participant-audio{display:flex;align-items:center;gap:4px}
+.participant-audio button{min-width:28px;padding:4px}
+.participant-audio button[aria-pressed=true]{color:#ffc0ca}
 .stage-meta{position:absolute;inset:auto 0 0;padding:10px 12px;display:flex;justify-content:space-between;gap:8px;align-items:center;background:#101822e8}
 .stage-meta small{display:block}
 .stage-idle{display:grid;gap:8px;text-align:center;padding:12px;color:var(--dim)}

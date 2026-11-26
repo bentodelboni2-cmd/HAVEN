@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { ConnectionState, Room, RoomEvent, Track } from 'livekit-client'
+import { ConnectionState, LocalVideoTrack, Room, RoomEvent, Track } from 'livekit-client'
 import type { Participant, TrackPublication } from 'livekit-client'
 import type { Api } from './api'
 
@@ -24,6 +24,8 @@ export function useCall(api: Api, prefs: Prefs) {
   const [version,setVersion] = useState(0)
   const [deaf,setDeaf] = useState(false)
   const [requestedShare,setRequestedShare] = useState<Quality>()
+  const [isolatingAudio,setIsolatingAudio] = useState(false)
+  const [mutedParticipants,setMutedParticipants] = useState<Record<string,boolean>>({})
   const [sessionVolumes,setVolumes] = useState<Record<string,number>>({})
   const activeRef = useRef<ActiveCall | undefined>(undefined)
   const transition = useRef(false)
@@ -45,7 +47,7 @@ export function useCall(api: Api, prefs: Prefs) {
     activeRef.current = undefined
     setActive(undefined)
     try { await current.room.disconnect() }
-    finally { await api.json('/calls/'+current.id+'/respond',{state:'left'}).catch(()=>{}) }
+    finally { await api.json('/calls/'+current.id+'/respond',{state:'left'},AbortSignal.timeout(2500)).catch(()=>{}) }
   }
 
   async function join(id: string, title: string) {
@@ -65,7 +67,7 @@ export function useCall(api: Api, prefs: Prefs) {
         videoCaptureDefaults:{deviceId:prefs.camera || undefined},
         audioOutput:prefs.output ? {deviceId:prefs.output} : undefined,
       })
-      const updateEvents = [RoomEvent.ConnectionStateChanged,RoomEvent.ParticipantConnected,RoomEvent.ParticipantDisconnected,RoomEvent.TrackPublished,RoomEvent.TrackUnpublished,RoomEvent.TrackSubscribed,RoomEvent.TrackUnsubscribed,RoomEvent.TrackMuted,RoomEvent.TrackUnmuted,RoomEvent.LocalTrackPublished,RoomEvent.LocalTrackUnpublished,RoomEvent.ActiveSpeakersChanged,RoomEvent.ConnectionQualityChanged]
+      const updateEvents = [RoomEvent.ConnectionStateChanged,RoomEvent.ParticipantConnected,RoomEvent.ParticipantDisconnected,RoomEvent.TrackPublished,RoomEvent.TrackUnpublished,RoomEvent.TrackSubscribed,RoomEvent.TrackUnsubscribed,RoomEvent.TrackMuted,RoomEvent.TrackUnmuted,RoomEvent.LocalTrackPublished,RoomEvent.LocalTrackUnpublished,RoomEvent.ActiveSpeakersChanged]
       for (const event of updateEvents) next.on(event,refresh)
       await next.connect(result.url,result.token,{maxRetries:2}).catch(cause => {
         throw new Error('Não foi possível entrar na chamada. Confira a conexão com o servidor de mídia e tente novamente.', { cause })
@@ -74,6 +76,8 @@ export function useCall(api: Api, prefs: Prefs) {
       activeRef.current = current
       setDeaf(false)
       setRequestedShare(undefined)
+      setIsolatingAudio(false)
+      setMutedParticipants({})
       setVolumes({})
       setActive(current)
     } catch (error) {
@@ -92,7 +96,9 @@ export function useCall(api: Api, prefs: Prefs) {
     const disconnect = () => {
       const current = activeRef.current
       if (current?.room === room) {
-        void api.json('/calls/'+current.id+'/respond',{state:'left'}).catch(()=>{})
+        activeRef.current = undefined
+        setActive(undefined)
+        void api.json('/calls/'+current.id+'/respond',{state:'left'},AbortSignal.timeout(2500)).catch(()=>{})
       }
       refresh()
     }
@@ -132,23 +138,73 @@ export function useCall(api: Api, prefs: Prefs) {
     }
   },[mine,room,prefs.ptt,prefs.pttKey])
 
-  async function share(withAudio: boolean) {
+  async function share(withAudio: boolean, isolateLocally = false) {
     if (!mine) return
     const profile = profiles[prefs.quality]
-    const published = await mine.setScreenShareEnabled(true,{
+    setIsolatingAudio(withAudio && isolateLocally)
+    const tracks = await mine.createScreenTracks({
       audio:withAudio ? {restrictOwnAudio:true,echoCancellation:false,noiseSuppression:false,autoGainControl:false,channelCount:2} : false,
       resolution:{width:profile.width,height:profile.height,frameRate:profile.frameRate},
       contentHint:'motion',
-    },{
-      screenShareEncoding:{maxBitrate:(prefs.bitrate || profile.mbps)*1_000_000,maxFramerate:profile.frameRate},
-      simulcast:false,videoCodec:'h264',forceStereo:true,dtx:false,
+    }).catch(error=>{
+      setIsolatingAudio(false)
+      throw error
     })
-    if (published) setRequestedShare(prefs.quality)
+    try {
+      if (withAudio && !tracks.some(track=>track.source===Track.Source.ScreenShareAudio)) {
+        throw new Error('O Windows não disponibilizou o áudio desta captura. Escolha outra fonte ou desmarque o áudio.')
+      }
+      for (const track of tracks) {
+        if (activeRef.current?.room !== room || room?.state !== ConnectionState.Connected) throw new Error('A chamada foi interrompida.')
+        await mine.publishTrack(track,{
+          screenShareEncoding:{maxBitrate:(prefs.bitrate || profile.mbps)*1_000_000,maxFramerate:profile.frameRate},
+          simulcast:false,videoCodec:'h264',forceStereo:true,dtx:false,
+        })
+      }
+      if (tracks.some(track=>track.mediaStreamTrack.readyState==='ended')) throw new Error('A fonte de captura foi encerrada.')
+      setRequestedShare(prefs.quality)
+    } catch (error) {
+      await Promise.allSettled(tracks.map(track=>mine.unpublishTrack(track,true)))
+      tracks.forEach(track=>track.stop())
+      setIsolatingAudio(false)
+      throw error
+    }
     refresh()
   }
 
+  useEffect(()=>{
+    if (!sharing && requestedShare) {
+      setRequestedShare(undefined)
+    }
+    if (requestedShare && !hasShareAudio) setIsolatingAudio(false)
+  },[sharing,requestedShare,hasShareAudio])
+
+  async function changeQuality(quality: Quality) {
+    const track = source?.track
+    if (!(track instanceof LocalVideoTrack)) return
+    const { width,height,frameRate,mbps } = profiles[quality]
+    const video = track.mediaStreamTrack
+    const previous = video.getConstraints()
+    await video.applyConstraints({...previous,width:{max:width},height:{max:height},frameRate:{max:frameRate}})
+    try {
+      const sender = track.sender
+      if (sender) {
+        const parameters = sender.getParameters()
+        for (const encoding of parameters.encodings) {
+          encoding.maxBitrate=(prefs.bitrate||mbps)*1_000_000
+          encoding.maxFramerate=frameRate
+        }
+        await sender.setParameters(parameters)
+      }
+    } catch (error) {
+      await video.applyConstraints(previous).catch(()=>{})
+      throw error
+    }
+    setRequestedShare(quality)
+  }
   function updateVolume(id: string, value: number) { setVolumes(v=>({...v,[id]:value})) }
-  return {active,busy,version,deaf,setDeaf,sessionVolumes,updateVolume,join,leave,mine,participants,shares,sharing,requestedShare,hasShareAudio,share}
+  function toggleParticipantMute(id: string) { setMutedParticipants(previous=>({...previous,[id]:!previous[id]})) }
+  return {active,busy,version,deaf,setDeaf,sessionVolumes,updateVolume,mutedParticipants,toggleParticipantMute,isolatingAudio,join,leave,mine,participants,shares,sharing,requestedShare,hasShareAudio,share,changeQuality}
 }
 export type Media = ReturnType<typeof useCall>
 
