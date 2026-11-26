@@ -15,3 +15,9 @@ O script `node scripts/tablet-livekit-patch.mjs protocol RAIZ_DO_MÓDULO` ou `no
 2. Em `github.com/livekit/protocol/utils/hwstats/memory_linux.go`, na função `newPlatformMemoryGetter()`, após testar `e, err := fileExists(k)`, troque o retorno do ramo de erro de `return nil, err` por `return osStat, nil`. Faça uma cópia do arquivo antes da edição.
 3. Em `pkg/telemetry/prometheus/node_linux.go`, use o corpo `return 0, 0, nil` em `func getTCStats() (packets, drops uint32, err error)`. Remova imports que ficarem sem uso. Os zeros dessa função são artificiais. Use estatísticas WebRTC para medir perda.
 4. No checkout, com Go 1.26.9, rode `GOTOOLCHAIN=local GODEBUG=asyncpreemptoff=1 GOMAXPROCS=2 CGO_ENABLED=0 /opt/go126/go/bin/go build -p 2 -o livekit-haven-repro ./cmd/server`. Essa reconstrução ainda depende do checkout do tablet e o `/proc/stat` do PRoot pode ser virtualizado.
+
+## Operação 0.4.0
+
+- O backend concede administração de servidor por papel separado dos espaços. O primeiro papel é concedido pelo CLI local. O painel acessa estado, inventário de chamadas, auditoria resumida e backups por rotas autenticadas.
+- O supervisor usa o LiveKit existente, verifica ambos os processos, limita logs e gera cópias SQLite consistentes. O procedimento de atualização preserva o ambiente e testa a migração em uma cópia.
+- O backend pode servir uma pasta de versões. O desktop valida assinatura Ed25519, versão e SHA-256 antes de abrir o instalador. O endereço padrão do cliente pode ser alterado em build via VITE_HAVEN_SERVER e em execução nos ajustes.

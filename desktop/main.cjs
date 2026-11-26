@@ -5,6 +5,7 @@ const { randomUUID } = require('node:crypto')
 const { join, resolve, sep } = require('node:path')
 const { pathToFileURL } = require('node:url')
 const { release } = require('node:os')
+const updates = require('./updates.cjs')
 
 const origin = 'haven://app'
 const entry = origin + '/index.html'
@@ -129,6 +130,8 @@ app.whenReady().then(async () => {
     from(event)
     return withSession(() => rm(sessionFile(),{force:true}))
   })
+  ipcMain.handle('updates:check', (event,base) => { from(event); return updates.check(base) })
+  ipcMain.handle('updates:install', (event,base,version) => { from(event); return updates.install(base,version) })
   ipcMain.handle('window:control', (event,action) => {
     const owner = from(event)
     const {win} = owner

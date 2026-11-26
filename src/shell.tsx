@@ -29,9 +29,24 @@ export function Form({children,submit,label='Salvar'}:{children:ReactNode;submit
     <div className="dialog-actions"><button className="accent" disabled={busy}>{busy?'Aguarde…':label}</button></div>
   </form>
 }
-export function SettingsPage({state,prefs,save,api,base,notify,signOut,refresh}:{state:Snapshot;prefs:Prefs;save:(p:Prefs)=>void;api:Api;base:string;notify:(e:unknown)=>void;signOut:()=>Promise<void>;refresh:()=>void}){
+export function SettingsPage({state,prefs,save,api,base,notify,signOut,refresh,changeServer,openAdmin,update,checkUpdate}:{
+  state:Snapshot;prefs:Prefs;save:(p:Prefs)=>void;api:Api;base:string;notify:(e:unknown)=>void;signOut:()=>Promise<void>;refresh:()=>void
+  changeServer:(address:string)=>Promise<void>;openAdmin:()=>void;update:{version:string}|null;checkUpdate:()=>Promise<{version:string}|null|undefined>
+}){
   const [devices,setDevices]=useState<MediaDeviceInfo[]>([])
   const [working,setWorking]=useState(false)
+  const [updating,setUpdating]=useState(false)
+  async function versionAction() {
+    if(updating||!window.haven)return
+    setUpdating(true)
+    try {
+      if(update) {
+        await window.haven.installUpdate(base,update.version)
+        notify('Instalador verificado. Conclua a atualização na janela do Windows.')
+      } else if(!await checkUpdate())notify('Nenhuma atualização disponível neste servidor.')
+    } catch(error){notify(error)}
+    finally{setUpdating(false)}
+  }
   useEffect(()=>{
     const scan=()=>void navigator.mediaDevices.enumerateDevices().then(setDevices).catch(notify)
     scan()
@@ -72,6 +87,13 @@ export function SettingsPage({state,prefs,save,api,base,notify,signOut,refresh}:
     <Panel title="Aparência, rede e privacidade"><div className="stack">
       <label>Tema<select value={prefs.theme} onChange={e=>save({...prefs,theme:e.target.value as Prefs['theme']})}><option value="ardosia">Ardósia</option><option value="carvao">Carvão</option></select></label>
       <p>Servidor <strong>{base}</strong></p><p>A mídia ainda não tem criptografia de ponta a ponta.</p>
+      {window.haven&&<button className={update?'accent':'quiet'} disabled={updating} onClick={()=>void versionAction()}>{updating?'Verificando…':update?'Instalar HAVEN '+update.version:'Verificar atualizações'}</button>}
+      <details><summary>Configuração avançada do servidor</summary>
+        <Form key={base} label="Trocar servidor" submit={async form=>{await changeServer(String(form.get('address')))}}><label>Endereço<input type="url" name="address" required defaultValue={base}/></label>
+          <small>Ao trocar o endereço, entre com sua conta nesse servidor.</small>
+        </Form>
+      </details>
+      {state.admin&&<button className="quiet" onClick={openAdmin}>Administração</button>}
       <button className="quiet" onClick={()=>void signOut().catch(notify)}>Encerrar sessão</button>
     </div></Panel>
   </div></>

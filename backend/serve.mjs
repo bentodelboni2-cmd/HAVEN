@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
 import { openDb } from './db.mjs'
 import { makeServer } from './server.mjs'
 
@@ -22,9 +23,11 @@ const tls = env.HAVEN_TLS_KEY && env.HAVEN_TLS_CERT ? {
   key: readFileSync(env.HAVEN_TLS_KEY), cert: readFileSync(env.HAVEN_TLS_CERT),
 } : undefined
 if (host !== '127.0.0.1' && !tls && !(lan && local.test(host))) throw new Error('Bind externo exige TLS ou IP privado explícito em modo LAN.')
-const db = openDb(env.HAVEN_DB || 'data/haven.sqlite')
+const databaseFile = env.HAVEN_DB || 'data/haven.sqlite'
+const db = openDb(databaseFile)
 const trustProxy = host === '127.0.0.1' && env.HAVEN_TRUST_LOCAL_PROXY === '1' ? 'loopback' : false
-const app = makeServer(db, { media: media.href, api:api.href, key: env.LIVEKIT_API_KEY, secret: env.LIVEKIT_API_SECRET, tls, trustProxy })
+const app = makeServer(db, { media:media.href, api:api.href, key:env.LIVEKIT_API_KEY, secret:env.LIVEKIT_API_SECRET, tls, trustProxy,
+  backupDir:join(dirname(databaseFile),'backups'), releases:env.HAVEN_RELEASE_DIR })
 await app.listen({ port, host })
 console.log('HAVEN disponível em ' + app.addresses().map(address => address.port).join(', '))
 for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, async () => {

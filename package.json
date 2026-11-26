@@ -1,6 +1,6 @@
 {
   "name": "haven",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Chamadas e espaços privados",
   "author": "HAVEN",
   "private": true,
@@ -14,7 +14,8 @@
     "start": "electron .",
     "check": "tsc --noEmit && node --check desktop/main.cjs && node --check desktop/preload.cjs",
     "test": "node --test",
-    "package:win": "pnpm run build && electron-builder --win nsis --x64"
+    "package:win": "pnpm run build && electron-builder --win nsis --x64",
+    "release": "node --env-file-if-exists=.env.release scripts/release.mjs"
   },
   "dependencies": {
     "fastify": "5.12.8",

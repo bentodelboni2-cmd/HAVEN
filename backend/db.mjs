@@ -27,7 +27,7 @@ export function openDb(path) {
     db.exec('PRAGMA busy_timeout=5000; PRAGMA foreign_keys=ON; PRAGMA journal_mode=WAL;')
     runTx(db, () => {
       const version = db.prepare('PRAGMA user_version').get().user_version
-      if (version > 1) throw new Error('Banco exige versão mais recente do HAVEN.')
+      if (version > 2) throw new Error('Banco exige versão mais recente do HAVEN.')
       if (version === 0) db.exec(`
     CREATE TABLE users(id TEXT PRIMARY KEY, handle TEXT NOT NULL UNIQUE, name TEXT NOT NULL, password TEXT NOT NULL, color TEXT NOT NULL DEFAULT 'verde', seen INTEGER NOT NULL DEFAULT 0);
     CREATE TABLE sessions(hash TEXT PRIMARY KEY, user TEXT NOT NULL REFERENCES users(id), expires INTEGER NOT NULL);
@@ -47,6 +47,12 @@ export function openDb(path) {
     CREATE INDEX call_members_user ON call_members(user);
     CREATE INDEX events_space ON events(space,starts);
     PRAGMA user_version=1;
+      `)
+      if (version < 2) db.exec(`
+        CREATE TABLE server_admins(user TEXT PRIMARY KEY REFERENCES users(id));
+        CREATE TABLE disabled_users(user TEXT PRIMARY KEY REFERENCES users(id));
+        CREATE TABLE admin_events(id INTEGER PRIMARY KEY, actor TEXT NOT NULL REFERENCES users(id), action TEXT NOT NULL, detail TEXT NOT NULL, at INTEGER NOT NULL);
+        PRAGMA user_version=2;
       `)
     })
   } catch (error) {

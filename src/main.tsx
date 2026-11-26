@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { AudioLines, Bell, CalendarDays, CirclePlus, Clipboard, House, Images, LayoutGrid, Phone, Plus, Settings, Users, X } from 'lucide-react'
-import { ApiError, baseDefault, client, describe, endpoint } from './api'
+import { ApiError, baseDefault, client, connectionMessage, describe, endpoint } from './api'
+import { AdminPanel } from './admin-panel'
 import type { Call, Channel, Snapshot, Space, Thread } from './api'
 import { Avatar, Conversation, Dialog, Empty, Events, Panel, Recent, SectionTitle } from './components'
 import { CallAudio, CallControls, CallView } from './call'
@@ -18,7 +19,7 @@ const nav = [
   { label: 'Amigos', icon: Users }, { label: 'Chamadas', icon: Phone },
   { label: 'Atividades', icon: CalendarDays }, { label: 'Biblioteca', icon: Images },
 ] as const
-type Page = (typeof nav)[number]['label'] | 'Ajustes'
+type Page = (typeof nav)[number]['label'] | 'Ajustes' | 'Administração'
 
 function App() {
   const [base,setBase]=useState(()=>localStorage.getItem('haven.backend')||baseDefault)
@@ -27,6 +28,7 @@ function App() {
   const api=useMemo(()=>client(base,token),[base,token])
   const [data,setData]=useState<Snapshot>()
   const [connection,setConnection]=useState('')
+  const [update,setUpdate]=useState<{version:string}|null>(null)
   const [page,setPage]=useState<Page>('Início')
   const [spaceId,setSpaceId]=useState('')
   const [thread,setThread]=useState<{thread:Thread;title:string}>()
@@ -69,15 +71,15 @@ function App() {
   useEffect(()=>{
     if(restoring||!token)return
     const controller=new AbortController()
-    api.json<Snapshot>('/state',undefined,controller.signal).then(next=>{
+    api.json<Snapshot>('/state',undefined,AbortSignal.any([controller.signal,AbortSignal.timeout(8000)])).then(next=>{
       if(!controller.signal.aborted){setData(next);setConnection('')}
     }).catch(error=>{
       if(controller.signal.aborted)return
       if(error instanceof ApiError&&error.status===401){void leave.current();void invalidate()}
-      else setConnection(describe(error))
+      else setConnection(connectionMessage(base,error))
     })
     return ()=>controller.abort()
-  },[api,token,version,invalidate,restoring])
+  },[api,base,token,version,invalidate,restoring])
   useEffect(()=>{
     if(restoring||!token)return
     const controller=new AbortController()
@@ -89,8 +91,21 @@ function App() {
     })
     connect()
     const timer=window.setInterval(refresh,12000)
-    return ()=>{controller.abort();window.clearTimeout(retry);window.clearTimeout(batch);window.clearInterval(timer)}
+    window.addEventListener('online',refresh)
+    return ()=>{controller.abort();window.clearTimeout(retry);window.clearTimeout(batch);window.clearInterval(timer);window.removeEventListener('online',refresh)}
   },[api,token,refresh,restoring])
+  const checkUpdate=useCallback(async ()=>{
+    const next=await window.haven?.checkUpdate(base)
+    setUpdate(next??null)
+    return next
+  },[base])
+  useEffect(()=>{
+    if(!token||restoring)return
+    const check=()=>void checkUpdate().catch(()=>{})
+    check()
+    const timer=window.setInterval(check,6*60*60_000)
+    return ()=>window.clearInterval(timer)
+  },[checkUpdate,restoring,token])
   const hasActive=Boolean(media.active)
   useEffect(()=>{
     if(!hasActive&&hud){setHud(false);void window.haven?.window('restore').catch(notify)}
@@ -99,6 +114,16 @@ function App() {
     await media.leave().catch(()=>{})
     await api.json('/logout',{},AbortSignal.timeout(2500)).catch(()=>{})
     await invalidate()
+  }
+  async function changeServer(value:string) {
+    const address=endpoint(value)
+    if(address===base)return
+    const health=await client(address).json<{ok?:boolean}>('/health',undefined,AbortSignal.timeout(6000))
+    if(health.ok!==true)throw new Error('O endereço não respondeu como servidor do HAVEN.')
+    await signOut()
+    localStorage.setItem('haven.backend',address)
+    setBase(address)
+    setUpdate(null)
   }
   if(restoring)return <div className="waiting"><main role="status">Restaurando sua sessão…</main></div>
   if(!token)return <Login base={base} authorized={async (address,next,created)=>{
@@ -195,7 +220,9 @@ function App() {
         return <><div className="heading"><SectionTitle>Biblioteca</SectionTitle>{target&&<select aria-label="Espaço" value={target.id} onChange={e=>setLibrary(e.target.value)}>{data.spaces.map(s=><option value={s.id} key={s.id}>{s.name}</option>)}</select>}</div>
           <Panel title={target?'Mídias de '+target.name:'Mídias compartilhadas'}>{target?<Conversation key={target.id} api={api} thread={{kind:'wall',target:target.id}} signal={version} notify={notify} me={data.me.id} wall/>:<Empty>Entre em um espaço para acessar seu mural.</Empty>}</Panel></>
       }
-      case 'Ajustes': return <SettingsPage state={data} prefs={prefs} save={save} api={api} base={base} notify={notify} signOut={signOut} refresh={refresh}/>
+      case 'Ajustes': return <SettingsPage state={data} prefs={prefs} save={save} api={api} base={base} notify={notify} signOut={signOut} refresh={refresh}
+        changeServer={changeServer} openAdmin={()=>navigate('Administração')} update={update} checkUpdate={checkUpdate}/>
+      case 'Administração': return data.admin?<AdminPanel api={api} me={data.me.id} notify={notify}/>:<Empty>Administração restrita.</Empty>
     }
   }
   return <div className={'shell '+prefs.theme+(hud?' hud':'')}>

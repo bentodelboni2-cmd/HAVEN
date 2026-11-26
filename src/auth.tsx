@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { ArrowLeft, ArrowRight, ChevronDown, Eye, EyeOff, Mountain, SlidersHorizontal } from 'lucide-react'
-import { ApiError, baseDefault, client, describe, endpoint } from './api'
+import { ApiError, baseDefault, client, connectionMessage, describe, endpoint } from './api'
 import { WindowButtons } from './shell'
 
 type Step = 'login' | 'invite' | 'profile'
@@ -17,7 +17,7 @@ async function accountServer(value: string) {
   if (new URL(address).port === '7880') {
     throw new Error('Essa é a porta de mídia. Em Servidor de contas, use o endereço do HAVEN (normalmente na porta 8787).')
   }
-  throw new Error('Sem conexão com o servidor de contas. Confira o endereço e se o HAVEN está rodando no servidor.')
+  throw new Error(connectionMessage(address,new TypeError(),false))
 }
 
 export function Login({ base, authorized }: { base: string; authorized: (address: string, token: string, created: boolean) => Promise<void> }) {
@@ -108,7 +108,7 @@ export function Login({ base, authorized }: { base: string; authorized: (address
         <div className="entry-network">
           <button className="network-toggle" type="button" disabled={busy} aria-expanded={network} aria-controls="server-fields" onClick={() => setNetwork(!network)}><SlidersHorizontal size={15}/>Servidor de contas<ChevronDown size={14}/></button>
           {network && <div id="server-fields" className="network-fields"><label>Endereço do servidor<input type="url" value={address} disabled={busy} onChange={e => setAddress(e.target.value)} placeholder={baseDefault} spellCheck={false}/></label>
-            <button type="button" className="text-action" disabled={busy} onClick={() => {setAddress(baseDefault); setError('')}}>Usar servidor deste PC</button></div>}
+            <button type="button" className="text-action" disabled={busy} onClick={() => {setAddress(baseDefault); setError('')}}>Usar endereço padrão do HAVEN</button></div>}
         </div>
       </section>
     </main>

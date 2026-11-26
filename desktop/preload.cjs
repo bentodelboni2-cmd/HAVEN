@@ -7,5 +7,7 @@ contextBridge.exposeInMainWorld('haven', {
   readSession: () => ipcRenderer.invoke('session:read'),
   saveSession: value => ipcRenderer.invoke('session:save',value),
   clearSession: () => ipcRenderer.invoke('session:clear'),
+  checkUpdate: base => ipcRenderer.invoke('updates:check',base),
+  installUpdate: (base,version) => ipcRenderer.invoke('updates:install',base,version),
   window: action => ipcRenderer.invoke('window:control',action),
 })

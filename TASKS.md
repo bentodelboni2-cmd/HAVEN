@@ -33,3 +33,9 @@ O executável passou no fluxo de cadastro por convite, saída e novo login com u
 2. Compare a configuração solicitada aos valores do receptor durante 10 minutos. Registre resolução, FPS, quadros decodificados, bitrate, RTT e aumento de perda e teste com dois espectadores. Zero perda em uma amostra não demonstra ausência de perda.
 3. No tablet, valide SQLite ARM64, restauração, tela desligada, Android em segundo plano, temperatura, CPU/memória, vários participantes e reinício, mantendo o PC de desenvolvimento desligado. Os contadores TC modificados do LiveKit retornam valores artificiais.
 4. Implementar E2EE com distribuição e rotação de chaves autenticadas e validar acesso externo com TLS, ICE/TURN e revogação. A configuração atual é para laboratório em rede confiável.
+
+## Operação 0.4.0
+
+- Validado no Windows empacotado: cadastro, sessão persistente, login, saída offline, painel exclusivo de administrador, lote de convites, backup, reconexão após queda do backend e bloqueio de instalador alterado.
+- Validados em ambiente isolado: reinício do LiveKit sem reiniciar contas, backup inicial e migração v1 → v2 com configuração e convite preservados. Build e publicação assinada passaram no destino local.
+- Pendente no tablet: instalar o pacote, conceder o primeiro papel, configurar o destino de atualização e validar boot, retenção e chamadas entre duas redes pelo Tailscale.

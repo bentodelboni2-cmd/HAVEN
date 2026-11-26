@@ -2,6 +2,8 @@ import Fastify from 'fastify'
 import { randomUUID } from 'node:crypto'
 import { AccessToken, RoomServiceClient, TrackSource } from 'livekit-server-sdk'
 import { clock, digest, issueInvite, passwordHash, passwordMatches, runTx, secret } from './db.mjs'
+import { registerControl } from './control.mjs'
+import { registerReleases } from './releases.mjs'
 
 const DAY = 86_400_000
 const RING_MS = 60_000
@@ -136,7 +138,7 @@ export function makeServer(db, config) {
   const secure = (method,url,fn,options) => app.route({ method,url,...options, handler: async (q, reply) => {
     const token = q.headers.authorization?.match(/^Bearer ([\w-]{43})$/)?.[1]
     const hash = token && digest(token)
-    const user = hash && get('SELECT ' + person + ' FROM users u JOIN sessions s ON s.user=u.id WHERE s.hash=? AND s.expires>?',hash,clock())
+    const user = hash && get('SELECT ' + person + ' FROM users u JOIN sessions s ON s.user=u.id WHERE s.hash=? AND s.expires>? AND u.id NOT IN (SELECT user FROM disabled_users)',hash,clock())
     if (!user) throw fail(401,'Entre com sua conta.')
     if (user.seen + 10000 < clock()) run('UPDATE users SET seen=? WHERE id=?',clock(),user.id)
     const result = await fn(q, user, reply, hash)
@@ -145,11 +147,15 @@ export function makeServer(db, config) {
   } })
   const GET = (url,fn) => secure('GET',url,fn)
   const POST = (url,fn,options) => secure('POST',url,fn,options)
+  registerControl({db,GET,POST,roomService,backupDir:config.backupDir,fail,dropSessions:hashes=>{
+    for(const hash of hashes) for(const stream of streams.get(hash)||[]) stream.end()
+  }})
   app.get('/health', () => ({ ok: true }))
+  registerReleases(app,config.releases)
   app.post('/auth/login', async ({ body }) => {
     const { handle,password } = credentials(body || {})
     const user = get('SELECT id,password FROM users WHERE handle=?',handle)
-    if (!(await passwordMatches(password,user?.password)) || !user) throw fail(401,'Usuário ou senha inválidos.')
+    if (!(await passwordMatches(password,user?.password)) || !user || get('SELECT 1 FROM disabled_users WHERE user=?',user.id)) throw fail(401,'Usuário ou senha inválidos.')
     return session(user.id)
   })
   app.post('/auth/register', async ({ body }) => {
@@ -225,7 +231,7 @@ export function makeServer(db, config) {
       if (recent) latest.push({ ...recent, kind, target })
     }
     const occupancy = (await Promise.all(liveRooms.map(async c => ({ room:c.room,...await liveVoice(c.id) })))).filter(r=>r.total)
-    return { me:{ id:u,...me },spaces,rooms,members,friends,calls,events,occupancy,unread,latest:latest.sort((a,b)=>b.id-a.id).slice(0,5) }
+    return { me:{ id:u,...me },admin:Boolean(get('SELECT 1 FROM server_admins WHERE user=?',u)),spaces,rooms,members,friends,calls,events,occupancy,unread,latest:latest.sort((a,b)=>b.id-a.id).slice(0,5) }
   })
 
   POST('/profile', ({body:b},u) => {

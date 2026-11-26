@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { mkdtempSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
@@ -11,9 +11,10 @@ import { issueInvite, openDb } from '../../backend/db.mjs'
 const repo = resolve(import.meta.dirname,'../..')
 const scratch = mkdtempSync(join(tmpdir(),'haven-qa-'))
 const electron = createRequire(import.meta.url)('electron')
-const binary = process.argv.includes('--package') ? join(repo,'release/0.3.0/win-unpacked/HAVEN.exe') : electron
+const {version}=JSON.parse(readFileSync(join(repo,'package.json'),'utf8'))
+const binary = process.argv.includes('--package') ? join(repo,'release',version,'win-unpacked/HAVEN.exe') : electron
 const db = openDb(join(scratch,'smoke.sqlite'))
-const app = makeServer(db,{media:'ws://127.0.0.1:17980',key:'devkey',secret:'secret'})
+const app = makeServer(db,{media:'ws://127.0.0.1:17980',key:'devkey',secret:'secret',backupDir:join(scratch,'backups'),releases:join(scratch,'updates')})
 const origin = await app.listen({host:'127.0.0.1',port:0})
 const children = []
 const clients = []

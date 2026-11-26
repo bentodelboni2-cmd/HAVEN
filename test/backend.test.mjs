@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
@@ -10,7 +10,7 @@ import { digest, issueInvite, openDb } from '../backend/db.mjs'
 test('contas privadas, histórico persistente, arquivos e autorização do LiveKit', async t => {
   const dir = mkdtempSync(join(tmpdir(),'haven-test-'))
   const file = join(dir,'test.sqlite')
-  const config = {key:'key',secret:'a-test-key-that-is-never-used-outside-of-tests-1',media:'ws://127.0.0.1:7880'}
+  const config = {key:'key',secret:'a-test-key-that-is-never-used-outside-of-tests-1',media:'ws://127.0.0.1:7880',backupDir:join(dir,'backups'),releases:dir}
   let db = openDb(file)
   let app = makeServer(db,config)
   t.after(async () => { await app.close(); db.close(); rmSync(dir,{recursive:true,force:true}) })
@@ -31,6 +31,25 @@ test('contas privadas, histórico persistente, arquivos e autorização do LiveK
   const outsider = (await register('tranger',issueInvite(db))).token
   const a = (await request('/state',{token:alice})).me
   const b = (await request('/state',{token:bob})).me
+  await request('/admin/overview',{token:alice,status:403})
+  await request('/admin/invites',{token:bob,payload:{count:1,uses:1},status:403})
+  db.prepare('INSERT INTO server_admins VALUES(?)').run(a.id)
+  assert.equal((await request('/state',{token:alice})).admin,true)
+  const generated = await request('/admin/invites',{token:alice,payload:{count:2,uses:1}})
+  assert.equal(new Set(generated.codes).size,2)
+  const overview=await request('/admin/overview',{token:alice})
+  assert.ok(overview.invites.some(invite=>invite.id===digest(generated.codes[0])))
+  assert.ok(!JSON.stringify(overview).includes(generated.codes[0]))
+  await request('/admin/invites/revoke',{token:alice,payload:{id:digest(generated.codes[0])}})
+  await register('revoked',generated.codes[0],403)
+  const backup = await request('/admin/backups',{token:alice,payload:{}})
+  const restored = openDb(join(config.backupDir,backup.name))
+  assert.equal(restored.prepare('PRAGMA quick_check').get().quick_check,'ok')
+  assert.equal(restored.prepare('SELECT count(*) AS n FROM users').get().n,3)
+  restored.close()
+  writeFileSync(join(dir,'manifest.json'),'{}')
+  assert.deepEqual(await request('/updates/manifest.json'),{})
+  await request('/updates/test.sqlite',{status:404})
 
   await request('/health',{headers:{origin:'https://example.invalid'},status:403})
   assert.equal((await app.inject({url:'/health',headers:{origin:'haven://app'}})).headers['access-control-allow-origin'],'haven://app')
@@ -100,10 +119,19 @@ test('contas privadas, histórico persistente, arquivos e autorização do LiveK
   await request('/conversations/dm/'+a.id,{token:bob,status:403})
   await request('/logout',{token:outsider,payload:{}})
   await request('/state',{token:outsider,status:401})
+  await request('/admin/users',{token:alice,payload:{id:b.id,action:'grant'}})
+  assert.equal((await request('/state',{token:bob})).admin,true)
+  await request('/admin/users',{token:alice,payload:{id:b.id,action:'revoke'}})
+  await request('/admin/overview',{token:bob,status:403})
+  await request('/admin/users',{token:alice,payload:{id:b.id,action:'disable'}})
+  await request('/auth/login',{payload:credentials('bobby'),status:401})
+  await request('/state',{token:bob,status:401})
+  await request('/admin/users',{token:alice,payload:{id:b.id,action:'enable'}})
+  const returned=(await request('/auth/login',{payload:credentials('bobby')})).token
 
   await app.close()
   db.close()
   db=openDb(file)
   app=makeServer(db,config)
-  assert.equal((await request(history,{token:bob})).rows[0].body,'Mensagem real de integração')
+  assert.equal((await request(history,{token:returned})).rows[0].body,'Mensagem real de integração')
 })

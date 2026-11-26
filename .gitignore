@@ -3,5 +3,7 @@ dist/
 release/
 data/
 .env
+.env.release
+*.pem
 *.sqlite*
 *.log

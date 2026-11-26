@@ -50,15 +50,17 @@ export function useCall(api: Api, prefs: Prefs) {
     finally { await api.json('/calls/'+current.id+'/respond',{state:'left'},AbortSignal.timeout(2500)).catch(()=>{}) }
   }
 
-  async function join(id: string, title: string) {
+  async function join(id: string, title: string, recover=false) {
     if (transition.current) return
-    if (activeRef.current?.id === id) return
+    const previous = activeRef.current
+    if (previous?.id === id && !recover) return
+    if (recover && (previous?.id!==id || previous.room.state!==ConnectionState.Disconnected)) return
     transition.current = true
     setBusy(true)
     let next: Room | undefined
     try {
-      await leave()
-      const result = await api.json<Credentials>('/media-token',{id})
+      if(!recover)await leave()
+      const result = await api.json<Credentials>('/media-token',{id},AbortSignal.timeout(7000))
       const url = new URL(result.url)
       const privateHost = /^(?:localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(?:1[6-9]|2\d|3[01])\.\d+\.\d+)$/
       if (!(url.protocol === 'wss:' || (url.protocol === 'ws:' && privateHost.test(url.hostname))) || url.username || url.password) throw new Error('Endereço de mídia inválido.')
@@ -72,17 +74,19 @@ export function useCall(api: Api, prefs: Prefs) {
       await next.connect(result.url,result.token,{maxRetries:2}).catch(cause => {
         throw new Error('Não foi possível entrar na chamada. Confira a conexão com o servidor de mídia e tente novamente.', { cause })
       })
+      if(recover&&activeRef.current!==previous) {
+        await next.disconnect()
+        return
+      }
       const current = { id,title,code:result.code,room:next }
       activeRef.current = current
-      setDeaf(false)
+      if(!recover){setDeaf(false);setMutedParticipants({});setVolumes({})}
       setRequestedShare(undefined)
       setIsolatingAudio(false)
-      setMutedParticipants({})
-      setVolumes({})
       setActive(current)
     } catch (error) {
       await next?.disconnect().catch(()=>{})
-      await api.json('/calls/'+id+'/respond',{state:'left'}).catch(()=>{})
+      if(!recover)await api.json('/calls/'+id+'/respond',{state:'left'},AbortSignal.timeout(2500)).catch(()=>{})
       throw error
     } finally {
       transition.current = false
@@ -90,20 +94,35 @@ export function useCall(api: Api, prefs: Prefs) {
     }
   }
 
+  const reconnect=useRef(join)
+  reconnect.current=join
   useEffect(() => () => { void activeRef.current?.room.disconnect() },[])
   useEffect(() => {
     if (!room) return
+    let retry=0
+    let timer:number|undefined
+    let disposed=false
+    async function retryJoin() {
+      const current=activeRef.current
+      if(disposed||!current||current.room!==room)return
+      try{await reconnect.current(current.id,current.title,true)}
+      catch {
+        if(disposed||activeRef.current!==current)return
+        if(++retry<3)timer=window.setTimeout(()=>void retryJoin(),3000*2**retry)
+        else {
+          activeRef.current=undefined
+          setActive(undefined)
+          void api.json('/calls/'+current.id+'/respond',{state:'left'},AbortSignal.timeout(2500)).catch(()=>{})
+        }
+      }
+    }
     const disconnect = () => {
       const current = activeRef.current
-      if (current?.room === room) {
-        activeRef.current = undefined
-        setActive(undefined)
-        void api.json('/calls/'+current.id+'/respond',{state:'left'},AbortSignal.timeout(2500)).catch(()=>{})
-      }
+      if (current?.room === room && timer===undefined) timer=window.setTimeout(()=>void retryJoin(),3000)
       refresh()
     }
     room.on(RoomEvent.Disconnected,disconnect)
-    return () => { room.off(RoomEvent.Disconnected,disconnect) }
+    return () => { disposed=true;window.clearTimeout(timer);room.off(RoomEvent.Disconnected,disconnect) }
   },[room,refresh,api])
 
   useEffect(() => {

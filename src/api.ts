@@ -8,6 +8,7 @@ export type Call = { id: string; name: string; room: string | null; state: 'join
 export type Thread = { kind: 'room' | 'dm' | 'call' | 'wall'; target: string }
 export type Message = { id: number; name: string; sender: string; body: string; sent: number; color: string; kind: string | null }
 export type Snapshot = {
+  admin?: boolean
   me: Person; spaces: Space[]; rooms: Channel[]; members: (Person & { space: string; role: Role })[]
   friends: Friend[]; events: Event[]; calls: Call[]; occupancy: {room: string; total: number; screens: string[]}[]
   unread: Record<string, number>; latest: (Thread & Pick<Message,'id'|'name'|'body'|'sent'>)[]
@@ -21,11 +22,13 @@ declare global {
       readSession: () => Promise<{base:string;token:string}|null>
       saveSession: (value:{base:string;token:string}) => Promise<boolean>
       clearSession: () => Promise<void>
+      checkUpdate: (base:string) => Promise<{version:string}|null>
+      installUpdate: (base:string,version:string) => Promise<boolean>
       window: (action: 'min'|'max'|'close'|'hud'|'restore') => Promise<void>
     }
   }
 }
-export const baseDefault = 'http://127.0.0.1:8787'
+export const baseDefault = import.meta.env.VITE_HAVEN_SERVER || 'http://192.168.0.4:8787'
 export function endpoint(value: string) {
   const url = new URL(value.trim())
   const privateHost = /^(?:localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(?:1[6-9]|2\d|3[01])\.\d+\.\d+)$/
@@ -72,7 +75,19 @@ export function client(base: string, token = '') {
 }
 export type Api = ReturnType<typeof client>
 export const threadPath = ({kind,target}:Thread) => '/conversations/' + kind + '/' + target
-export const describe = (error: unknown) => error instanceof TypeError ? 'Servidor indisponível. Confira a conexão e o endereço.' : error instanceof Error ? error.message : String(error)
+export const describe = (error: unknown) => error instanceof TypeError ? 'Servidor indisponível. Confira a conexão e o endereço.' : error instanceof Error ? error.message.replace(/^Error invoking remote method '[^']+': Error: /,'') : String(error)
+export function connectionMessage(base:string, error:unknown, retry=true) {
+  const hint=retry?' O HAVEN vai tentar novamente.':''
+  if (!navigator.onLine) return 'Sem internet.'+hint
+  if (!(error instanceof TypeError) && !(error instanceof DOMException && error.name==='TimeoutError')) return describe(error)
+  try {
+    const host = new URL(base).hostname
+    if (/^(192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.)/.test(host)) {
+      return 'O servidor do HAVEN não respondeu na rede privada. Confira o Tailscale e se o tablet está online.'+hint
+    }
+  } catch { /* The generic message also covers malformed saved addresses. */ }
+  return 'O servidor do HAVEN não respondeu.'+hint
+}
 export const online = (person: Person) => Date.now() - person.seen < 45000
 export const dateTime = (date: number) => new Intl.DateTimeFormat('pt-BR',{dateStyle:'short',timeStyle:'short'}).format(date)
 export const time = (date: number) => new Intl.DateTimeFormat('pt-BR',{timeStyle:'short'}).format(date)
