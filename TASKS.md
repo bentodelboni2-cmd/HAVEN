@@ -43,3 +43,7 @@ O executável passou no fluxo de cadastro por convite, saída e novo login com u
 ## Acesso direto no Samsung
 
 - Testados localmente o perfil público, cadastro e login por HTTPS, token de mídia aceito por WSS e bloqueio da API interna do LiveKit. Pendente em produção: DNS, acesso ao roteador, certificados públicos e chamada entre redes sem Tailscale.
+
+## Ngrok temporário
+
+- Validado em 0.4.1 empacotada: HTTPS pelo domínio de desenvolvimento, GET protegido e POST de login com CORS. O Electron envia o identificador HAVEN apenas para domínios HTTPS gratuitos do ngrok. A mídia ainda usa o LiveKit privado do tablet.

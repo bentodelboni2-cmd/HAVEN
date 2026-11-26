@@ -57,6 +57,11 @@ function from(event) {
 app.whenReady().then(async () => {
   if (!existsSync(join(dist,'index.html'))) throw new Error('Execute pnpm build antes de abrir o HAVEN.')
   const browser = session.defaultSession
+  // The ngrok free tier uses an HTML interstitial for browser user agents.
+  browser.webRequest.onBeforeSendHeaders({urls:['https://*.ngrok-free.dev/*','https://*.ngrok-free.app/*']},(details,callback)=>{
+    details.requestHeaders['User-Agent']='HAVEN/'+app.getVersion()
+    callback({requestHeaders:details.requestHeaders})
+  })
   browser.protocol.handle('haven', request => {
     const url = new URL(request.url)
     const filepath = resolve(dist,'.' + decodeURIComponent(url.pathname))
