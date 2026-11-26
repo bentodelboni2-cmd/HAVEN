@@ -1,8 +1,10 @@
 # HAVEN
 
-Aplicativo Windows para chamadas e espaços privados. A versão 0.3.0 usa LiveKit para mídia e um backend separado para contas, conversas e arquivos.
+Aplicativo Windows para chamadas e espaços privados. O HAVEN usa LiveKit para mídia e um backend separado para contas, conversas e arquivos.
 
-Para atualizar uma instalação existente no tablet, veja o [guia da versão 0.3.0](ATUALIZAR-TABLET-0.3.0.md).
+A interface exibe **HAVEN 0.5.1**. A revisão de layout e da tela de chamadas usa a versão interna **0.5.2** e a tag `v0.5.2`.
+
+Para atualizar o servidor de contas no tablet, consulte o [guia de atualização do backend](deploy/ATUALIZAR-0.5.0.md).
 
 ## Primeira execução no PC
 
